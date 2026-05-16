@@ -33,3 +33,6 @@ __pycache__/
 
 
 docs/
+
+.vite/
+node_modules/
