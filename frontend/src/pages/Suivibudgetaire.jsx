@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import Topbar from "../components/Topbar";
+import { getData } from "../services/dataStore";
 
 const inputStyle = {
   width: "100%",
@@ -61,16 +62,12 @@ export default function SuiviBudgetaire() {
   const [selectedLibelle, setSelectedLibelle] = useState("");
 
   useEffect(() => {
-    const load = (key) => {
-      const stored = localStorage.getItem(key);
-      return stored ? JSON.parse(stored) : [];
-    };
-    setExercices(load("exercices"));
-    setBudgetTypes(load("budgetTypes"));
-    setAnnualBudgets(load("annualBudgets"));
-    setLibelles(load("libelles"));
-    setAllocations(load("budgetAllocations"));
-    setCommandes(load("commandes"));
+    setExercices(getData("exercices", []));
+    setBudgetTypes(getData("budgetTypes", []));
+    setAnnualBudgets(getData("annualBudgets", []));
+    setLibelles(getData("libelles", []));
+    setAllocations(getData("budgetAllocations", []));
+    setCommandes(getData("commandes", []));
   }, []);
 
   const getExercice = (id) => exercices.find(ex => String(ex._id) === String(id));

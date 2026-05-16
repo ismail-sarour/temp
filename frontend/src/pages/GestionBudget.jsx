@@ -3,6 +3,7 @@ import Topbar from "../components/Topbar";
 import StatusActiveToggle from "../components/StatusActiveToggle";
 import DeleteIconButton from "../components/DeleteIconButton";
 import { apiFetch } from "../hooks/useApiData";
+import { updateModule1Cache } from "../services/dataStore";
 
 // ─── Shared styles ────────────────────────────────────────────────────────────
 const inputStyle = {
@@ -43,7 +44,7 @@ const tdStyle = (extra = {}) => ({
   ...extra,
 });
 
-// ─── Small components ─────────────────────────────────────────────────────────
+// ─── Small components ────────────────────────────────────────────────────────
 const AddBtn = ({ onClick, label }) => (
   <button onClick={onClick} style={{
     display: "flex", alignItems: "center", gap: 6,
@@ -125,11 +126,11 @@ const FormCard = ({ title, onSave, onCancel, saveLabel, children }) => (
 
 const StatusBadge = ({ status }) => {
   const colors = {
-    "Actif":     { bg: "#EAF4E2", color: "#3B6D11" },
-    "Inactif":   { bg: "#F5F0E8", color: "#6B6760" },
+    "Actif": { bg: "#EAF4E2", color: "#3B6D11" },
+    "Inactif": { bg: "#F5F0E8", color: "#6B6760" },
     "Brouillon": { bg: "#E8F0FA", color: "#185FA5" },
-    "Validé":    { bg: "#EAF4E2", color: "#3B6D11" },
-    "Clôturé":   { bg: "#F5F0E8", color: "#6B6760" },
+    "Validé": { bg: "#EAF4E2", color: "#3B6D11" },
+    "Clôturé": { bg: "#F5F0E8", color: "#6B6760" },
   };
   const style = colors[status] || colors["Inactif"];
   return (
@@ -143,68 +144,73 @@ const StatusBadge = ({ status }) => {
 export default function GestionBudget() {
   const [tab, setTab] = useState("exercices");
 
-  const [exercices, setExercices]       = useState([]);
-  const [budgetTypes, setBudgetTypes]   = useState([]);
+  // STATE FOR ALL SECTIONS
+  const [exercices, setExercices] = useState([]);
+  const [budgetTypes, setBudgetTypes] = useState([]);
   const [annualBudgets, setAnnualBudgets] = useState([]);
-  const [apiError, setApiError]         = useState(null);
+  const [apiError, setApiError] = useState(null);
 
-  // ── Forms state ──────────────────────────────────────────────────────────────
-  const emptyExercice   = { year: "", label: "", start_date: "", end_date: "", status: "Actif" };
+  // FORMS
+  const emptyExercice = { year: "", label: "", start_date: "", end_date: "", status: "Actif" };
   const emptyBudgetType = { code: "", name_fr: "", name_ar: "", status: "Actif" };
-  const emptyBudget     = { exercice_id: "", visa_date: "", status: "Brouillon", observation: "" };
+  const emptyBudget = { exercice_id: "", visa_date: "", status: "Brouillon", observation: "" };
 
-  const [exerciceForm,    setExerciceForm]    = useState(emptyExercice);
-  const [budgetTypeForm,  setBudgetTypeForm]  = useState(emptyBudgetType);
-  const [budgetForm,      setBudgetForm]      = useState(emptyBudget);
+  const [exerciceForm, setExerciceForm] = useState(emptyExercice);
+  const [budgetTypeForm, setBudgetTypeForm] = useState(emptyBudgetType);
+  const [budgetForm, setBudgetForm] = useState(emptyBudget);
   const [budgetTypeAmounts, setBudgetTypeAmounts] = useState({});
 
-  const [editExerciceId,   setEditExerciceId]   = useState(null);
+  const [editExerciceId, setEditExerciceId] = useState(null);
   const [editBudgetTypeId, setEditBudgetTypeId] = useState(null);
-  const [editBudgetId,     setEditBudgetId]     = useState(null);
+  const [editBudgetId, setEditBudgetId] = useState(null);
 
-  const [showExerciceForm,   setShowExerciceForm]   = useState(false);
+  const [showExerciceForm, setShowExerciceForm] = useState(false);
   const [showBudgetTypeForm, setShowBudgetTypeForm] = useState(false);
-  const [showBudgetForm,     setShowBudgetForm]     = useState(false);
+  const [showBudgetForm, setShowBudgetForm] = useState(false);
 
-  // ── Loaders ───────────────────────────────────────────────────────────────────
   const loadExercices = useCallback(async () => {
-    try {
-      const data = await apiFetch("/exercises");
-      setExercices(data);
-    } catch (e) { setApiError(e.message); }
+    const data = await apiFetch("/exercises");
+    setExercices(data);
+    updateModule1Cache({ exercices: data });
+    return data;
   }, []);
 
   const loadBudgetTypes = useCallback(async () => {
-    try {
-      const data = await apiFetch("/budget-types");
-      setBudgetTypes(data);
-    } catch (e) { setApiError(e.message); }
+    const data = await apiFetch("/budget-types");
+    setBudgetTypes(data);
+    updateModule1Cache({ budgetTypes: data });
+    return data;
   }, []);
 
   const loadAnnualBudgets = useCallback(async () => {
-    try {
-      const data = await apiFetch("/annual-budgets");
-      setAnnualBudgets(data);
-    } catch (e) { setApiError(e.message); }
+    const data = await apiFetch("/annual-budgets");
+    setAnnualBudgets(data);
+    updateModule1Cache({ annualBudgets: data });
+    return data;
   }, []);
 
   useEffect(() => {
-    loadExercices();
-    loadBudgetTypes();
-    loadAnnualBudgets();
-  }, []);
+    Promise.all([loadExercices(), loadBudgetTypes(), loadAnnualBudgets()]).catch(
+      (e) => setApiError(e.message),
+    );
+  }, [loadExercices, loadBudgetTypes, loadAnnualBudgets]);
 
-  // ── Helpers ───────────────────────────────────────────────────────────────────
+  // HELPERS
   const getExerciceLabel = (id) => {
     const ex = exercices.find(e => String(e._id) === String(id));
     return ex ? `${ex.year} – ${ex.label}` : "-";
   };
   const getActiveBudgetTypes = () => budgetTypes.filter(bt => bt.status === "Actif");
-  const getActiveExercices   = () => exercices.filter(ex => ex.status === "Actif");
+  const getActiveExercices = () => exercices.filter(ex => ex.status === "Actif");
+  const budgetHasType = (budgetId, typeId) => annualBudgets.find(b => String(b._id) === String(budgetId))?.lines?.some(l => String(l.type_id) === String(typeId));
+  const getBudgetTotalAmount = (budgetId) => {
+    const budget = annualBudgets.find(b => String(b._id) === String(budgetId));
+    return budget?.lines?.reduce((sum, l) => sum + (Number(l.amount) || 0), 0) || 0;
+  };
 
-  // ═══════════════════════════════════════════════════════════════════
+  // ═════════════════════════════════════════════════════════════════
   // EXERCICES CRUD
-  // ═══════════════════════════════════════════════════════════════════
+  // ═════════════════════════════════════════════════════════════════
   const submitExercice = async () => {
     if (!exerciceForm.year?.toString().trim() || !exerciceForm.label?.trim() ||
         !exerciceForm.start_date || !exerciceForm.end_date) return;
@@ -267,9 +273,9 @@ export default function GestionBudget() {
     } catch (e) { setApiError(e.message); }
   };
 
-  // ═══════════════════════════════════════════════════════════════════
-  // BUDGET TYPES CRUD
-  // ═══════════════════════════════════════════════════════════════════
+  // ═════════════════════════════════════════════════════════════════
+  // BUDGET TYPES CRUD (FCT, INV, etc.)
+  // ═════════════════════════════════════════════════════════════════
   const submitBudgetType = async () => {
     if (!budgetTypeForm.code?.trim() || !budgetTypeForm.name_fr?.trim()) return;
     try {
@@ -279,10 +285,7 @@ export default function GestionBudget() {
           body: budgetTypeForm,
         });
       } else {
-        await apiFetch("/budget-types", {
-          method: "POST",
-          body: budgetTypeForm,
-        });
+        await apiFetch("/budget-types", { method: "POST", body: budgetTypeForm });
       }
       await loadBudgetTypes();
       setBudgetTypeForm(emptyBudgetType);
@@ -293,7 +296,12 @@ export default function GestionBudget() {
   };
 
   const editBudgetType = (bt) => {
-    setBudgetTypeForm({ code: bt.code, name_fr: bt.name_fr, name_ar: bt.name_ar || "", status: bt.status });
+    setBudgetTypeForm({
+      code: bt.code,
+      name_fr: bt.name_fr,
+      name_ar: bt.name_ar || "",
+      status: bt.status,
+    });
     setEditBudgetTypeId(bt._id);
     setShowBudgetTypeForm(true);
   };
@@ -318,9 +326,9 @@ export default function GestionBudget() {
     } catch (e) { setApiError(e.message); }
   };
 
-  // ═══════════════════════════════════════════════════════════════════
+  // ═════════════════════════════════════════════════════════════════
   // ANNUAL BUDGETS CRUD
-  // ═══════════════════════════════════════════════════════════════════
+  // ═════════════════════════════════════════════════════════════════
   const submitBudget = async () => {
     if (!budgetForm.exercice_id || !budgetForm.visa_date) return;
 
@@ -362,7 +370,7 @@ export default function GestionBudget() {
       observation: b.observation || "",
     });
     const amounts = {};
-    b.lines?.forEach(l => { amounts[l.type_id] = l.amount; });
+    b.lines?.forEach((l) => { amounts[l.type_id] = l.amount; });
     setBudgetTypeAmounts(amounts);
     setEditBudgetId(b._id);
     setShowBudgetForm(true);
@@ -376,11 +384,10 @@ export default function GestionBudget() {
     } catch (e) { setApiError(e.message); }
   };
 
-  // ── Tabs ──────────────────────────────────────────────────────────────────────
   const tabs = [
-    { key: "exercices", label: "Exercices",       count: exercices.length },
-    { key: "types",     label: "Types de Budget", count: budgetTypes.length },
-    { key: "budgets",   label: "Budget Annuel",   count: annualBudgets.length },
+    { key: "exercices", label: "Exercices", count: exercices.length },
+    { key: "types", label: "Types de Budget", count: budgetTypes.length },
+    { key: "budgets", label: "Budget Annuel", count: annualBudgets.length },
   ];
 
   return (
@@ -388,7 +395,6 @@ export default function GestionBudget() {
       <Topbar title="Exercices & Budget" />
 
       <div style={{ flex: 1, overflowY: "auto", padding: "24px", background: "#F6F5F2" }}>
-
         {apiError && <ErrBanner message={apiError} />}
 
         {/* Tabs */}
@@ -416,7 +422,9 @@ export default function GestionBudget() {
           ))}
         </div>
 
-        {/* ══════════════ TAB: EXERCICES ══════════════ */}
+        {/* ════════════════════════════════════════════════════════════════
+            TAB: EXERCICES
+        ════════════════════════════════════════════════════════════════ */}
         {tab === "exercices" && (
           <>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
@@ -467,26 +475,22 @@ export default function GestionBudget() {
                       <tr key={ex._id} style={{ borderBottom: i < exercices.length - 1 ? "0.5px solid #F2EFE8" : "none" }}>
                         <td style={tdStyle({ fontWeight: 600, color: "#1A1917" })}>{ex.year}</td>
                         <td style={tdStyle()}>{ex.label}</td>
-                        <td style={tdStyle()}>{ex.start_date ? new Date(ex.start_date).toLocaleDateString("fr-FR") : "-"}</td>
-                        <td style={tdStyle()}>{ex.end_date ? new Date(ex.end_date).toLocaleDateString("fr-FR") : "-"}</td>
+                        <td style={tdStyle()}>{new Date(ex.start_date).toLocaleDateString("fr-FR")}</td>
+                        <td style={tdStyle()}>{new Date(ex.end_date).toLocaleDateString("fr-FR")}</td>
                         <td style={tdStyle()}>
                           <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                             <StatusBadge status={ex.status} />
                             {ex.status !== "Clôturé" && (
                               <StatusActiveToggle
                                 isActive={ex.status === "Actif"}
+                                disabled={false}
                                 title={ex.status === "Actif" ? "Passer en Inactif" : "Passer en Actif"}
                                 onToggle={() => toggleExerciceActive(ex)}
                               />
                             )}
                           </div>
                         </td>
-                        <td style={tdStyle()}>
-                          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                            <button onClick={() => editExercice(ex)} style={{ background: "#F2EFE8", border: "0.5px solid #DDD9D0", borderRadius: 6, padding: "5px 12px", fontSize: 12, color: "#1A1917", cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>Modifier</button>
-                            <DeleteIconButton onConfirm={() => deleteExercice(ex._id)} message="Supprimer cet exercice ? Les budgets liés seront aussi supprimés." />
-                          </div>
-                        </td>
+                        <td style={tdStyle()}><div style={{ display: "flex", gap: 8, alignItems: "center" }}><button onClick={() => editExercice(ex)} style={{ background: "#F2EFE8", border: "0.5px solid #DDD9D0", borderRadius: 6, padding: "5px 12px", fontSize: 12, color: "#1A1917", cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>Modifier</button><DeleteIconButton onConfirm={() => deleteExercice(ex._id)} message="Êtes-vous sûr de vouloir supprimer cet exercice ? Les budgets liés seront aussi retirés de l'affichage local." /></div></td>
                       </tr>
                     ))}
                   </tbody>
@@ -496,7 +500,9 @@ export default function GestionBudget() {
           </>
         )}
 
-        {/* ══════════════ TAB: BUDGET TYPES ══════════════ */}
+        {/* ════════════════════════════════════════════════════════════════
+            TAB: BUDGET TYPES
+        ════════════════════════════════════════════════════════════════ */}
         {tab === "types" && (
           <>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
@@ -549,16 +555,12 @@ export default function GestionBudget() {
                             <StatusBadge status={bt.status} />
                             <StatusActiveToggle
                               isActive={bt.status === "Actif"}
+                              disabled={false}
                               onToggle={() => toggleBudgetTypeActive(bt)}
                             />
                           </div>
                         </td>
-                        <td style={tdStyle()}>
-                          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                            <button onClick={() => editBudgetType(bt)} style={{ background: "#F2EFE8", border: "0.5px solid #DDD9D0", borderRadius: 6, padding: "5px 12px", fontSize: 12, color: "#1A1917", cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>Modifier</button>
-                            <DeleteIconButton onConfirm={() => deleteBudgetType(bt._id)} message="Supprimer ce type de budget ?" />
-                          </div>
-                        </td>
+                        <td style={tdStyle()}><div style={{ display: "flex", gap: 8, alignItems: "center" }}><button onClick={() => editBudgetType(bt)} style={{ background: "#F2EFE8", border: "0.5px solid #DDD9D0", borderRadius: 6, padding: "5px 12px", fontSize: 12, color: "#1A1917", cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>Modifier</button><DeleteIconButton onConfirm={() => deleteBudgetType(bt._id)} message="Êtes-vous sûr de vouloir supprimer ce type de budget ?" /></div></td>
                       </tr>
                     ))}
                   </tbody>
@@ -568,7 +570,9 @@ export default function GestionBudget() {
           </>
         )}
 
-        {/* ══════════════ TAB: ANNUAL BUDGETS ══════════════ */}
+        {/* ════════════════════════════════════════════════════════════════
+            TAB: ANNUAL BUDGETS
+        ════════════════════════════════════════════════════════════════ */}
         {tab === "budgets" && (
           <>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
@@ -589,15 +593,9 @@ export default function GestionBudget() {
                 onCancel={() => { setShowBudgetForm(false); setEditBudgetId(null); setBudgetForm(emptyBudget); setBudgetTypeAmounts({}); }}
                 saveLabel={editBudgetId ? "Mettre à jour" : "Enregistrer"}
               >
-                <div>
-                  <label style={labelStyle}>Exercice *</label>
-                  <select value={budgetForm.exercice_id} onChange={e => setBudgetForm({ ...budgetForm, exercice_id: e.target.value })} style={inputStyle}>
-                    <option value="">-- Sélectionner --</option>
-                    {getActiveExercices().map(ex => <option key={ex._id} value={String(ex._id)}>{ex.year} – {ex.label}</option>)}
-                  </select>
-                </div>
+                <div><label style={labelStyle}>Exercice *</label><select value={budgetForm.exercice_id} onChange={e => setBudgetForm({ ...budgetForm, exercice_id: e.target.value })} style={inputStyle}><option value="">-- Sélectionner --</option>{getActiveExercices().map(ex => <option key={ex._id} value={String(ex._id)}>{ex.year} – {ex.label}</option>)}</select></div>
                 <div><label style={labelStyle}>Date de visa *</label><input type="date" value={budgetForm.visa_date} onChange={e => setBudgetForm({ ...budgetForm, visa_date: e.target.value })} style={inputStyle} /></div>
-
+                
                 {getActiveBudgetTypes().map((type) => (
                   <div key={type._id}>
                     <label style={labelStyle}>{type.code} – {type.name_fr} (MAD)</label>
@@ -635,32 +633,11 @@ export default function GestionBudget() {
                     {annualBudgets.map((budget, i) => (
                       <tr key={budget._id} style={{ borderBottom: i < annualBudgets.length - 1 ? "0.5px solid #F2EFE8" : "none" }}>
                         <td style={tdStyle()}>{getExerciceLabel(budget.exercice_id)}</td>
-                        <td style={tdStyle()}>{budget.visa_date ? new Date(budget.visa_date).toLocaleDateString("fr-FR") : "-"}</td>
-                        <td style={tdStyle({ fontSize: 12 })}>
-                          {budget.lines?.map(l => {
-                            const type = budgetTypes.find(bt => String(bt._id) === String(l.type_id));
-                            return `${type?.code || l.type_id}: ${Number(l.amount).toLocaleString("fr-FR")}`;
-                          }).join(" | ") || "-"}
-                        </td>
-                        <td style={tdStyle({ fontWeight: 600, color: "#1A1917" })}>{Number(budget.total_amount || 0).toLocaleString("fr-FR")} MAD</td>
+                        <td style={tdStyle()}>{new Date(budget.visa_date).toLocaleDateString("fr-FR")}</td>
+                        <td style={tdStyle({ fontSize: 12 })}>{budget.lines?.map(l => { const type = budgetTypes.find(bt => String(bt._id) === String(l.type_id)); return `${type?.code}: ${l.amount.toLocaleString("fr-FR")}`; }).join(" | ") || "-"}</td>
+                        <td style={tdStyle({ fontWeight: 600, color: "#1A1917" })}>{budget.total_amount?.toLocaleString("fr-FR")} MAD</td>
                         <td style={tdStyle()}><StatusBadge status={budget.status} /></td>
-                        <td style={tdStyle()}>
-                          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                            <button
-                              onClick={() => editBudget(budget)}
-                              disabled={budget.status === "Validé"}
-                              style={{ background: "#F2EFE8", border: "0.5px solid #DDD9D0", borderRadius: 6, padding: "5px 12px", fontSize: 12, color: budget.status === "Validé" ? "#A8A49C" : "#1A1917", cursor: budget.status === "Validé" ? "not-allowed" : "pointer", fontFamily: "'DM Sans', sans-serif" }}
-                            >
-                              Modifier
-                            </button>
-                            <DeleteIconButton
-                              onConfirm={() => deleteBudget(budget._id)}
-                              disabled={budget.status === "Validé"}
-                              message="Supprimer ce budget annuel ?"
-                              title={budget.status === "Validé" ? "Budget validé : suppression interdite" : "Supprimer"}
-                            />
-                          </div>
-                        </td>
+                        <td style={tdStyle()}><div style={{ display: "flex", gap: 8, alignItems: "center" }}><button onClick={() => editBudget(budget)} style={{ background: "#F2EFE8", border: "0.5px solid #DDD9D0", borderRadius: 6, padding: "5px 12px", fontSize: 12, color: "#1A1917", cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>Modifier</button><DeleteIconButton onConfirm={() => deleteBudget(budget._id)} disabled={budget.status === "Validé"} message="Êtes-vous sûr de vouloir supprimer ce budget annuel ?" title={budget.status === "Validé" ? "Budget validé : suppression interdite" : "Supprimer"} /></div></td>
                       </tr>
                     ))}
                   </tbody>

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import Topbar from "../components/Topbar";
 import DeleteIconButton from "../components/DeleteIconButton";
+import { getData, setData } from "../services/dataStore";
 
 const inputStyle = {
   width: "100%",
@@ -45,6 +46,7 @@ const STATUS_WORKFLOW = [
   "Brouillon",
   "Créé",
   "Publié",
+  "Devis reçus",
   "Attribué",
   "En cours d'exécution",
   "Terminé",
@@ -220,24 +222,20 @@ export default function BoiteDeCommande() {
   const [history, setHistory] = useState([]);
 
   useEffect(() => {
-    const load = (key) => {
-      const stored = localStorage.getItem(key);
-      return stored ? JSON.parse(stored) : [];
-    };
-    setBcs(load("commandes"));
-    setExercices(load("exercices"));
-    setNatures(load("natures"));
-    setLibelles(load("libelles"));
-    setSuppliers(load("fournisseurs"));
-    setAllocations(load("budgetAllocations"));
-    setVatRates(load("vatRates"));
-    setRasRates(load("rasRates"));
-    setHistory(load("bcStatusHistory"));
+    setBcs(getData("commandes", []));
+    setExercices(getData("exercices", []));
+    setNatures(getData("natures", []));
+    setLibelles(getData("libelles", []));
+    setSuppliers(getData("fournisseurs", []));
+    setAllocations(getData("budgetAllocations", []));
+    setVatRates(getData("vatRates", []));
+    setRasRates(getData("rasRates", []));
+    setHistory(getData("bcStatusHistory", []));
   }, []);
 
-  const saveBcs = (list) => { setBcs(list); localStorage.setItem("commandes", JSON.stringify(list)); };
-  const saveAllocations = (list) => { setAllocations(list); localStorage.setItem("budgetAllocations", JSON.stringify(list)); };
-  const saveHistory = (list) => { setHistory(list); localStorage.setItem("bcStatusHistory", JSON.stringify(list)); };
+  const saveBcs = (list) => { setBcs(list); setData("commandes", list); };
+  const saveAllocations = (list) => { setAllocations(list); setData("budgetAllocations", list); };
+  const saveHistory = (list) => { setHistory(list); setData("bcStatusHistory", list); };
 
   const getExercice = (id) => exercices.find(e => String(e._id) === String(id));
   const getNature = (id) => natures.find(n => String(n._id) === String(id));

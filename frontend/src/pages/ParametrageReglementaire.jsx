@@ -3,6 +3,7 @@ import Topbar from "../components/Topbar";
 import DeleteIconButton from "../components/DeleteIconButton";
 import ActifInactifCell from "../components/ActifInactifCell";
 import { createDefaultBeneficiaryTypes } from "../data/defaultBeneficiaryTypes";
+import { getData, setData } from "../services/dataStore";
 
 // ─── Shared styles ────────────────────────────────────────────────────────────
 const inputStyle = {
@@ -195,48 +196,45 @@ export default function ParametrageReglementaire() {
 
   // LOAD FROM LOCALSTORAGE
   useEffect(() => {
-    const vat = localStorage.getItem("vatRates");
-    const ras = localStorage.getItem("rasRates");
-    const tax = localStorage.getItem("taxRules");
-    const nomTax = localStorage.getItem("nomenclatureTaxRules");
-    const pm = localStorage.getItem("procurementMethods");
-    const pt = localStorage.getItem("procurementThresholds");
-    const dt = localStorage.getItem("documentTypes");
-    const pay = localStorage.getItem("paymentMethods");
-    const fin = localStorage.getItem("financialInstitutions");
-    const prd = localStorage.getItem("procurementRequiredDocs");
-    const ops = localStorage.getItem("operationStatuses");
-    const bt = localStorage.getItem("beneficiaryTypes");
-    const btr = localStorage.getItem("beneficiaryTaxRules");
+    const vat = getData("vatRates");
+    const ras = getData("rasRates");
+    const tax = getData("taxRules");
+    const nomTax = getData("nomenclatureTaxRules");
+    const pm = getData("procurementMethods");
+    const pt = getData("procurementThresholds");
+    const dt = getData("documentTypes");
+    const pay = getData("paymentMethods");
+    const fin = getData("financialInstitutions");
+    const prd = getData("procurementRequiredDocs");
+    const ops = getData("operationStatuses");
+    const bt = getData("beneficiaryTypes");
+    const btr = getData("beneficiaryTaxRules");
 
-    if (vat) setVatRates(JSON.parse(vat).map((v) => { const { start_date, end_date, ...rest } = v; return rest; }));
-    if (ras) setRasRates(JSON.parse(ras).map((r) => { const { start_date, end_date, ...rest } = r; return rest; }));
-    if (tax) setTaxRules(JSON.parse(tax));
-    if (nomTax) setNomenclatureTaxRules(JSON.parse(nomTax));
-    if (pm) setProcurementMethods(JSON.parse(pm));
-    if (pt) {
-      setProcurementThresholds(
-        JSON.parse(pt).map((t) => ({
-          ...t,
-          threshold_scope: t.threshold_scope ?? "",
-          controle: t.controle ?? "",
-        }))
-      );
-    }
-    if (dt) setDocumentTypes(JSON.parse(dt).map((d) => ({ ...d, name_ar: d.name_ar ?? "" })));
-    if (pay) setPaymentMethods(JSON.parse(pay));
-    if (fin) setFinancialInstitutions(JSON.parse(fin));
-    if (prd) setProcurementRequiredDocs(JSON.parse(prd));
-    if (ops) setOperationStatuses(JSON.parse(ops));
-    if (bt) setBeneficiaryTypes(JSON.parse(bt));
-    if (btr) setBeneficiaryTaxRules(JSON.parse(btr));
-    const ex = localStorage.getItem("exercices");
-    if (ex) setExercices(JSON.parse(ex));
+    setVatRates((vat || []).map((v) => { const { start_date, end_date, ...rest } = v; return rest; }));
+    setRasRates((ras || []).map((r) => { const { start_date, end_date, ...rest } = r; return rest; }));
+    setTaxRules(tax || []);
+    setNomenclatureTaxRules(nomTax || []);
+    setProcurementMethods(pm || []);
+    setProcurementThresholds(
+      (pt || []).map((t) => ({
+        ...t,
+        threshold_scope: t.threshold_scope ?? "",
+        controle: t.controle ?? "",
+      })),
+    );
+    setDocumentTypes((dt || []).map((d) => ({ ...d, name_ar: d.name_ar ?? "" })));
+    setPaymentMethods(pay || []);
+    setFinancialInstitutions(fin || []);
+    setProcurementRequiredDocs(prd || []);
+    setOperationStatuses(ops || []);
+    setBeneficiaryTypes(bt || []);
+    setBeneficiaryTaxRules(btr || []);
+    setExercices(getData("exercices", []));
   }, []);
 
   // INITIALIZE DEFAULTS
   useEffect(() => {
-    if (localStorage.getItem("procurementMethods") === null) {
+    if (getData("procurementMethods", []).length === 0) {
       const defaults = [
         { _id: Date.now() + 1, code: "BC", name_fr: "Bon de commande", name_ar: "أمر شراء", status: "Actif" },
         { _id: Date.now() + 2, code: "MAR", name_fr: "Marché", name_ar: "العطاء", status: "Actif" },
@@ -244,9 +242,9 @@ export default function ParametrageReglementaire() {
         { _id: Date.now() + 4, code: "REGIE", name_fr: "Régie", name_ar: "رقابة", status: "Actif" },
       ];
       setProcurementMethods(defaults);
-      localStorage.setItem("procurementMethods", JSON.stringify(defaults));
+      setData("procurementMethods", defaults);
     }
-    if (localStorage.getItem("documentTypes") === null) {
+    if (getData("documentTypes", []).length === 0) {
       const defaults = [
         { _id: Date.now() + 11, code: "FACTURE", name_fr: "Facture", name_ar: "فاتورة", is_required: true, status: "Actif" },
         { _id: Date.now() + 12, code: "DEVIS", name_fr: "Devis", name_ar: "عرض أسعار", is_required: false, status: "Actif" },
@@ -257,26 +255,26 @@ export default function ParametrageReglementaire() {
         { _id: Date.now() + 17, code: "CNSS", name_fr: "CNSS", name_ar: "الضمان الاجتماعي", is_required: true, status: "Actif" },
       ];
       setDocumentTypes(defaults);
-      localStorage.setItem("documentTypes", JSON.stringify(defaults));
+      setData("documentTypes", defaults);
     }
-    if (localStorage.getItem("paymentMethods") === null) {
+    if (getData("paymentMethods", []).length === 0) {
       const defaults = [
         { _id: Date.now() + 20, code: "VIR", name_fr: "Virement", name_ar: "تحويل بنكي", requires_bank_account: true, status: "Actif" },
         { _id: Date.now() + 21, code: "CHQ", name_fr: "Chèque", name_ar: "شيك", requires_bank_account: false, status: "Actif" },
         { _id: Date.now() + 22, code: "ESP", name_fr: "Espèces", name_ar: "نقداً", requires_bank_account: false, status: "Actif" },
       ];
       setPaymentMethods(defaults);
-      localStorage.setItem("paymentMethods", JSON.stringify(defaults));
+      setData("paymentMethods", defaults);
     }
-    if (localStorage.getItem("financialInstitutions") === null) {
+    if (getData("financialInstitutions", []).length === 0) {
       const defaults = [
         { _id: Date.now() + 30, code: "TGR", name_fr: "Trésorerie Générale du Royaume", name_ar: "الخزينة العامة للمملكة", institution_type: "TGR", city: "Rabat", address: "", status: "Actif" },
         { _id: Date.now() + 31, code: "BANK_DEMO", name_fr: "Banque (exemple)", name_ar: "بنك (مثال)", institution_type: "Banque", city: "", address: "", status: "Actif" },
       ];
       setFinancialInstitutions(defaults);
-      localStorage.setItem("financialInstitutions", JSON.stringify(defaults));
+      setData("financialInstitutions", defaults);
     }
-    if (localStorage.getItem("operationStatuses") === null) {
+    if (getData("operationStatuses", []).length === 0) {
       const ts = Date.now();
       const defaults = [
         { _id: ts + 1, code: "DRAFT", name_fr: "Brouillon", name_ar: "مسودة", status_group: "draft", display_order: 1, is_final: false, status: "Actif" },
@@ -288,28 +286,28 @@ export default function ParametrageReglementaire() {
         { _id: ts + 7, code: "CANCELLED", name_fr: "Annulé", name_ar: "ملغى", status_group: "cancelled", display_order: 99, is_final: true, status: "Actif" },
       ];
       setOperationStatuses(defaults);
-      localStorage.setItem("operationStatuses", JSON.stringify(defaults));
+      setData("operationStatuses", defaults);
     }
-    if (localStorage.getItem("beneficiaryTypes") === null) {
+    if (getData("beneficiaryTypes", []).length === 0) {
       const defaults = createDefaultBeneficiaryTypes(Date.now());
       setBeneficiaryTypes(defaults);
-      localStorage.setItem("beneficiaryTypes", JSON.stringify(defaults));
+      setData("beneficiaryTypes", defaults);
     }
   }, []);
 
-  const saveTaxRates = (list) => { setVatRates(list); localStorage.setItem("vatRates", JSON.stringify(list)); };
-  const saveRasRates = (list) => { setRasRates(list); localStorage.setItem("rasRates", JSON.stringify(list)); };
-  const saveTaxRules = (list) => { setTaxRules(list); localStorage.setItem("taxRules", JSON.stringify(list)); };
-  const saveNomenclatureTaxRules = (list) => { setNomenclatureTaxRules(list); localStorage.setItem("nomenclatureTaxRules", JSON.stringify(list)); };
-  const saveProcurementMethods = (list) => { setProcurementMethods(list); localStorage.setItem("procurementMethods", JSON.stringify(list)); };
-  const saveProcurementThresholds = (list) => { setProcurementThresholds(list); localStorage.setItem("procurementThresholds", JSON.stringify(list)); };
-  const saveDocumentTypes = (list) => { setDocumentTypes(list); localStorage.setItem("documentTypes", JSON.stringify(list)); };
-  const savePaymentMethods = (list) => { setPaymentMethods(list); localStorage.setItem("paymentMethods", JSON.stringify(list)); };
-  const saveFinancialInstitutions = (list) => { setFinancialInstitutions(list); localStorage.setItem("financialInstitutions", JSON.stringify(list)); };
-  const saveProcurementRequiredDocs = (list) => { setProcurementRequiredDocs(list); localStorage.setItem("procurementRequiredDocs", JSON.stringify(list)); };
-  const saveOperationStatuses = (list) => { setOperationStatuses(list); localStorage.setItem("operationStatuses", JSON.stringify(list)); };
-  const saveBeneficiaryTypes = (list) => { setBeneficiaryTypes(list); localStorage.setItem("beneficiaryTypes", JSON.stringify(list)); };
-  const saveBeneficiaryTaxRules = (list) => { setBeneficiaryTaxRules(list); localStorage.setItem("beneficiaryTaxRules", JSON.stringify(list)); };
+  const saveTaxRates = (list) => { setVatRates(list); setData("vatRates", list); };
+  const saveRasRates = (list) => { setRasRates(list); setData("rasRates", list); };
+  const saveTaxRules = (list) => { setTaxRules(list); setData("taxRules", list); };
+  const saveNomenclatureTaxRules = (list) => { setNomenclatureTaxRules(list); setData("nomenclatureTaxRules", list); };
+  const saveProcurementMethods = (list) => { setProcurementMethods(list); setData("procurementMethods", list); };
+  const saveProcurementThresholds = (list) => { setProcurementThresholds(list); setData("procurementThresholds", list); };
+  const saveDocumentTypes = (list) => { setDocumentTypes(list); setData("documentTypes", list); };
+  const savePaymentMethods = (list) => { setPaymentMethods(list); setData("paymentMethods", list); };
+  const saveFinancialInstitutions = (list) => { setFinancialInstitutions(list); setData("financialInstitutions", list); };
+  const saveProcurementRequiredDocs = (list) => { setProcurementRequiredDocs(list); setData("procurementRequiredDocs", list); };
+  const saveOperationStatuses = (list) => { setOperationStatuses(list); setData("operationStatuses", list); };
+  const saveBeneficiaryTypes = (list) => { setBeneficiaryTypes(list); setData("beneficiaryTypes", list); };
+  const saveBeneficiaryTaxRules = (list) => { setBeneficiaryTaxRules(list); setData("beneficiaryTaxRules", list); };
 
   const flipActif = (s) => (s === "Actif" ? "Inactif" : "Actif");
   const toggleVatStatus = (v) => saveTaxRates(vatRates.map((x) => (x._id === v._id ? { ...x, status: flipActif(x.status) } : x)));

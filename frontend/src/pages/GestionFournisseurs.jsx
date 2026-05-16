@@ -3,6 +3,7 @@ import Topbar from "../components/Topbar";
 import DeleteIconButton from "../components/DeleteIconButton";
 import ActifInactifCell from "../components/ActifInactifCell";
 import { createDefaultBeneficiaryTypes } from "../data/defaultBeneficiaryTypes";
+import { getData, setData } from "../services/dataStore";
 
 const inputStyle = {
   width: "100%",
@@ -103,9 +104,9 @@ const LEGACY_BENEFICIARY_LABEL_TO_CODE = {
 };
 
 function seedBeneficiaryTypesIfMissing() {
-  if (localStorage.getItem("beneficiaryTypes") !== null) return;
+  if (getData("beneficiaryTypes", []).length > 0) return;
   const defaults = createDefaultBeneficiaryTypes(Date.now());
-  localStorage.setItem("beneficiaryTypes", JSON.stringify(defaults));
+  setData("beneficiaryTypes", defaults);
 }
 
 function resolveBeneficiaryTypeId(supplier, types) {
@@ -155,12 +156,12 @@ export default function GestionFournisseurs() {
 
   useEffect(() => {
     seedBeneficiaryTypesIfMissing();
-    const bt = JSON.parse(localStorage.getItem("beneficiaryTypes") || "[]");
+    const bt = getData("beneficiaryTypes", []);
     setBeneficiaryTypes(bt);
 
-    const storedSuppliers = localStorage.getItem("fournisseurs");
-    if (storedSuppliers) {
-      const parsed = JSON.parse(storedSuppliers);
+    const storedSuppliers = getData("fournisseurs", []);
+    if (storedSuppliers.length) {
+      const parsed = storedSuppliers;
       let migrated = false;
       const normalized = parsed.map((s) => {
         const id = resolveBeneficiaryTypeId(s, bt);
@@ -174,16 +175,16 @@ export default function GestionFournisseurs() {
         return next;
       });
       setSuppliers(normalized);
-      if (migrated) localStorage.setItem("fournisseurs", JSON.stringify(normalized));
+      if (migrated) setData("fournisseurs", normalized);
     }
-    const vat = localStorage.getItem("vatRates");
-    const ras = localStorage.getItem("rasRates");
-    const banks = localStorage.getItem("supplierBankAccounts");
-    const docs = localStorage.getItem("supplierDocuments");
-    if (vat) setVatRates(JSON.parse(vat));
-    if (ras) setRasRates(JSON.parse(ras));
-    if (banks) setBankAccounts(JSON.parse(banks));
-    if (docs) setDocuments(JSON.parse(docs));
+    const vat = getData("vatRates");
+    const ras = getData("rasRates");
+    const banks = getData("supplierBankAccounts");
+    const docs = getData("supplierDocuments");
+    setVatRates(vat || []);
+    setRasRates(ras || []);
+    setBankAccounts(banks || []);
+    setDocuments(docs || []);
   }, []);
 
   const defaultBeneficiaryTypeId = () => {
@@ -213,9 +214,9 @@ export default function GestionFournisseurs() {
     status: "Actif",
   });
 
-  const saveSuppliers = (list) => { setSuppliers(list); localStorage.setItem("fournisseurs", JSON.stringify(list)); };
-  const saveBankAccounts = (list) => { setBankAccounts(list); localStorage.setItem("supplierBankAccounts", JSON.stringify(list)); };
-  const saveDocuments = (list) => { setDocuments(list); localStorage.setItem("supplierDocuments", JSON.stringify(list)); };
+  const saveSuppliers = (list) => { setSuppliers(list); setData("fournisseurs", list); };
+  const saveBankAccounts = (list) => { setBankAccounts(list); setData("supplierBankAccounts", list); };
+  const saveDocuments = (list) => { setDocuments(list); setData("supplierDocuments", list); };
 
   const getSupplierLabel = (id) => suppliers.find(s => String(s._id) === String(id))?.company_name || "-";
 

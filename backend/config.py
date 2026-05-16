@@ -7,5 +7,5 @@ load_dotenv(Path(__file__).resolve().parent / ".env")
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql://postgres:pg123@localhost:5432/budget_db",
+    "postgresql://postgres:San.gohan.2@localhost:5432/casm_db",
 )

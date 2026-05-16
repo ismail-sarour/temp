@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import Topbar from "../components/Topbar";
 import DeleteIconButton from "../components/DeleteIconButton";
+import { getData, setData } from "../services/dataStore";
 
 // ─── Shared styles ────────────────────────────────────────────────────────────
 const inputStyle = {
@@ -107,24 +108,17 @@ export default function AffectationBudgetaire() {
   const [allocationAmount, setAllocationAmount] = useState("");
   const [editAllocationId, setEditAllocationId] = useState(null);
 
-  // LOAD FROM LOCALSTORAGE
   useEffect(() => {
-    const ex = localStorage.getItem("exercices");
-    const bt = localStorage.getItem("budgetTypes");
-    const ab = localStorage.getItem("annualBudgets");
-    const lib = localStorage.getItem("libelles");
-    const alloc = localStorage.getItem("budgetAllocations");
-
-    if (ex) setExercices(JSON.parse(ex));
-    if (bt) setBudgetTypes(JSON.parse(bt));
-    if (ab) setAnnualBudgets(JSON.parse(ab));
-    if (lib) setLibelles(JSON.parse(lib));
-    if (alloc) setAllocations(JSON.parse(alloc));
+    setExercices(getData("exercices", []));
+    setBudgetTypes(getData("budgetTypes", []));
+    setAnnualBudgets(getData("annualBudgets", []));
+    setLibelles(getData("libelles", []));
+    setAllocations(getData("budgetAllocations", []));
   }, []);
 
   const saveAllocations = (list) => {
     setAllocations(list);
-    localStorage.setItem("budgetAllocations", JSON.stringify(list));
+    setData("budgetAllocations", list);
   };
 
   // HELPERS

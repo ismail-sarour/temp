@@ -198,7 +198,7 @@ def update_exercise(exercise_id):
         """
         UPDATE budget_exercises
         SET year = %s, label = %s, start_date = %s, end_date = %s,
-            status = COALESCE(%s::exercise_status, status)
+            status = COALESCE(%s, status)
         WHERE id = %s
         """,
         (y, label, start_date, end_date, status_db, exercise_id),

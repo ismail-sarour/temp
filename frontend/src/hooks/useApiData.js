@@ -6,7 +6,6 @@ export const API_BASE_URL =
     ? import.meta.env.VITE_API_BASE_URL
     : devDefault;
 
-// ─── Helper générique pour tous les appels CRUD ───────────────────────────────
 export async function apiFetch(path, options = {}) {
   const res = await fetch(`${API_BASE_URL}${path}`, {
     headers: { "Content-Type": "application/json" },
@@ -19,7 +18,6 @@ export async function apiFetch(path, options = {}) {
   return data;
 }
 
-// ─── Hook polling (lecture auto) ──────────────────────────────────────────────
 export function useApiData(endpoint, interval = 5000) {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);

@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import Topbar from "../components/Topbar";
 import ActifInactifCell from "../components/ActifInactifCell";
 import DeleteIconButton from "../components/DeleteIconButton";
+import { getData, setData } from "../services/dataStore";
 
 // ─── Shared styles ────────────────────────────────────────────────────────────
 const inputStyle = {
@@ -174,14 +175,10 @@ export default function ParametrageLibelle() {
   const [showLibForm, setShowLibForm] = useState(false);
 
   useEffect(() => {
-    const f = localStorage.getItem("familles");
-    const c = localStorage.getItem("categories");
-    const n = localStorage.getItem("natures");
-    const l = localStorage.getItem("libelles");
-    if (f) setFamilles(JSON.parse(f));
-    if (c) setCategories(JSON.parse(c));
-    if (n) setNatures(JSON.parse(n));
-    if (l) setLibelles(JSON.parse(l));
+    setFamilles(getData("familles", []));
+    setCategories(getData("categories", []));
+    setNatures(getData("natures", []));
+    setLibelles(getData("libelles", []));
   }, []);
 
   const libelleNatureOptions = useMemo(
@@ -189,10 +186,10 @@ export default function ParametrageLibelle() {
     [familles, categories, natures]
   );
 
-  const saveFamilles = (list) => { setFamilles(list); localStorage.setItem("familles", JSON.stringify(list)); };
-  const saveCategories = (list) => { setCategories(list); localStorage.setItem("categories", JSON.stringify(list)); };
-  const saveNatures = (list) => { setNatures(list); localStorage.setItem("natures", JSON.stringify(list)); };
-  const saveLibelles = (list) => { setLibelles(list); localStorage.setItem("libelles", JSON.stringify(list)); };
+  const saveFamilles = (list) => { setFamilles(list); setData("familles", list); };
+  const saveCategories = (list) => { setCategories(list); setData("categories", list); };
+  const saveNatures = (list) => { setNatures(list); setData("natures", list); };
+  const saveLibelles = (list) => { setLibelles(list); setData("libelles", list); };
 
   const getFamLabel = (id) => familles.find(f => String(f._id) === String(id))?.nom_fr || "-";
   const getCatLabel = (id) => {
