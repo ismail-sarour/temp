@@ -217,7 +217,7 @@ export function buildComparaisons(devis, getBcLabel, getSupplierLabel) {
 /**
  * Attribution : devis retenu, BC attribué, engagement brouillon créé
  */
-export function processAttribution({
+export async function processAttribution({
   bcId,
   devisId,
   justification,
@@ -289,7 +289,7 @@ export function processAttribution({
   });
   saveCommandes(updatedBcs);
 
-  logAudit(AUDIT_ACTIONS.STATUS_CHANGE, "COMMANDE", bcId, {
+  await logAudit(AUDIT_ACTIONS.STATUS_CHANGE, "COMMANDE", bcId, {
     from: bc.statut,
     to: BC_STATUS.ATTRIBUE,
     devis_id: devisId,
@@ -332,19 +332,19 @@ export function processAttribution({
   saveAttributionsList([...getAttributionsList(), attribution]);
 
   if (selectedDevis.document_path) {
-    linkDocument("ATTRIBUTION", attribution._id, {
+    await linkDocument("ATTRIBUTION", attribution._id, {
       fileName: selectedDevis.document_path,
       type: "Devis retenu",
     });
   }
 
-  createNotification(
+  await createNotification(
     "Attribution enregistrée",
     `${getBcLabel(bcId)} — ${getSupplierLabel(selectedDevis.supplier_id)} (${amountHt.toLocaleString("fr-FR")} MAD HT). Engagement ${refEng} créé en brouillon.`,
     "success",
   );
 
-  logAudit(AUDIT_ACTIONS.APPROVE, "ATTRIBUTION", attribution._id, {
+  await logAudit(AUDIT_ACTIONS.APPROVE, "ATTRIBUTION", attribution._id, {
     bc_id: bcId,
     devis_id: devisId,
     engagement_id: engagement._id,
@@ -355,7 +355,7 @@ export function processAttribution({
 }
 
 /** Valider / soumettre un engagement avec contrôle crédit */
-export function validateEngagementStatus(engagementId, newStatus, engagements) {
+export async function validateEngagementStatus(engagementId, newStatus, engagements) {
   const engagement = engagements.find((e) => String(e._id) === String(engagementId));
   if (!engagement) return { success: false, error: "Engagement introuvable." };
 
@@ -394,7 +394,7 @@ export function validateEngagementStatus(engagementId, newStatus, engagements) {
   }
 
   if (newStatus === ENGAGEMENT_STATUS.ANNULE) {
-    createNotification(
+    await createNotification(
       "Engagement annulé",
       `Réf. ${engagement.reference} — crédit libéré.`,
       "info",
@@ -709,7 +709,7 @@ export function validatePaymentPayload({
 }
 
 /** Met à jour OP / BC après paiement */
-export function syncOrdonnanceAfterPayment(opId, paiements) {
+export async function syncOrdonnanceAfterPayment(opId, paiements) {
   const ordonnances = getOrdonnancesList();
   const op = ordonnances.find((o) => String(o._id) === String(opId));
   if (!op) return;
@@ -745,14 +745,14 @@ export function syncOrdonnanceAfterPayment(opId, paiements) {
     saveCommandes(bcs);
   }
 
-  logAudit(AUDIT_ACTIONS.STATUS_CHANGE, "ORDONNANCE", opId, {
+  await logAudit(AUDIT_ACTIONS.STATUS_CHANGE, "ORDONNANCE", opId, {
     to: newStatus,
     paid_amount: paid,
     net_amount: net,
   });
 
   if (newStatus === OP_STATUS.PAYEE) {
-    createNotification(
+    await createNotification(
       "OP soldée",
       `${op.reference} — paiement complet (${paid.toLocaleString("fr-FR")} MAD).`,
       "success",
@@ -894,7 +894,7 @@ export function validateVirementPayload({
 }
 
 /** Applique le virement sur les affectations */
-export function applyVirementToBudget(virement) {
+export async function applyVirementToBudget(virement) {
   if (virement.applied_at) {
     return { success: false, error: "Virement déjà appliqué." };
   }
@@ -963,7 +963,7 @@ export function applyVirementToBudget(virement) {
 
   saveAllocationsList(updated);
 
-  createNotification(
+  await createNotification(
     "Virement appliqué",
     `${virement.reference} — ${amount.toLocaleString("fr-FR")} MAD transférés.`,
     "success",

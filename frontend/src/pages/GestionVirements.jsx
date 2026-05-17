@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import Topbar from "../components/Topbar";
 import DeleteIconButton from "../components/DeleteIconButton";
-import { logAudit, AUDIT_ACTIONS, STORAGE_KEYS, getData, setData } from "../services/dataStore";
+import { logAudit, AUDIT_ACTIONS } from "../services/dataStore";
 import { apiFetch } from "../hooks/useApiData";
 import {
   VIREMENT_STATUS,
@@ -198,23 +198,25 @@ const StatusBadge = ({ status }) => {
 const formatNumber = (v) => Number(v || 0).toLocaleString("fr-FR");
 
 export default function GestionVirements() {
-  const [virements, setVirements] = useState(() => getData(STORAGE_KEYS.VIREMENTS, []));
-  const [allocations, setAllocations] = useState(() => getData(STORAGE_KEYS.BUDGET_ALLOCATIONS, []));
-  const [exercices] = useState(() => getData(STORAGE_KEYS.EXERCICES, []));
-  const [libelles] = useState(() => getData(STORAGE_KEYS.LIBELLES, []));
-
-  const saveVirements = (list) => {
-    setVirements(list);
-    setData(STORAGE_KEYS.VIREMENTS, list);
-  };
+  const [virements, setVirements] = useState([]);
+  const [allocations, setAllocations] = useState([]);
+  const [exercices, setExercices] = useState([]);
+  const [libelles, setLibelles] = useState([]);
 
   useEffect(() => {
-    apiFetch("/virements")
-      .then((data) => {
-        setVirements(data || []);
-        setData(STORAGE_KEYS.VIREMENTS, data || []);
+    Promise.all([
+      apiFetch("/virements"),
+      apiFetch("/budget-allocations"),
+      apiFetch("/exercises"),
+      apiFetch("/budget-types"),
+    ])
+      .then(([virementsData, allocationsData, exercicesData, libellesData]) => {
+        setVirements(virementsData || []);
+        setAllocations(allocationsData || []);
+        setExercices(exercicesData || []);
+        setLibelles(libellesData || []);
       })
-      .catch((err) => console.error("Failed to load virements:", err));
+      .catch((err) => console.error("Failed to load data:", err));
   }, []);
 
   const [summary, setSummary] = useState({
