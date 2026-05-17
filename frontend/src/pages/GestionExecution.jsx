@@ -9,6 +9,7 @@ import {
   setData,
   linkDocument,
 } from "../services/dataStore";
+import { apiFetch } from "../hooks/useApiData";
 import {
   getBcsForExecution,
   markServiceFait,
@@ -222,6 +223,15 @@ export default function GestionExecution() {
     setPenalites(list);
     setData(STORAGE_KEYS.PENALITES, list);
   };
+
+  useEffect(() => {
+    apiFetch("/executions")
+      .then((data) => {
+        setExecutions(data || []);
+        setData(STORAGE_KEYS.EXECUTIONS, data || []);
+      })
+      .catch((err) => console.error("Failed to load executions:", err));
+  }, []);
   const [form, setForm] = useState({
     bc_id: "",
     date: new Date().toISOString().split("T")[0],

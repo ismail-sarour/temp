@@ -6,6 +6,10 @@ from flask_cors import CORS
 
 from db import init_tables
 from routes.budget_api import bp as budget_bp
+from routes.audit_api import audit_bp
+from routes.notifications_api import notifications_bp
+from routes.documents_api import documents_bp
+from routes.entities_api import entities_bp
 
 
 def create_app():
@@ -13,6 +17,10 @@ def create_app():
     app = Flask(__name__)
     CORS(app)
     app.register_blueprint(budget_bp, url_prefix="/api")
+    app.register_blueprint(audit_bp, url_prefix="/api")
+    app.register_blueprint(notifications_bp, url_prefix="/api")
+    app.register_blueprint(documents_bp, url_prefix="/api")
+    app.register_blueprint(entities_bp, url_prefix="/api")
     return app
 
 

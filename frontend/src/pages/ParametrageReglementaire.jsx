@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import Topbar from "../components/Topbar";
 import DeleteIconButton from "../components/DeleteIconButton";
 import ActifInactifCell from "../components/ActifInactifCell";
-import { createDefaultBeneficiaryTypes } from "../data/defaultBeneficiaryTypes";
 import { getData, setData } from "../services/dataStore";
 
 // ─── Shared styles ────────────────────────────────────────────────────────────
@@ -289,7 +288,7 @@ export default function ParametrageReglementaire() {
       setData("operationStatuses", defaults);
     }
     if (getData("beneficiaryTypes", []).length === 0) {
-      const defaults = createDefaultBeneficiaryTypes(Date.now());
+      const defaults = [];
       setBeneficiaryTypes(defaults);
       setData("beneficiaryTypes", defaults);
     }

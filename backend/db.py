@@ -43,6 +43,193 @@ def init_tables():
         budget_type_id INTEGER NOT NULL,
         amount NUMERIC(18, 2) NOT NULL DEFAULT 0
     );
+
+    CREATE TABLE IF NOT EXISTS audit_logs (
+        id SERIAL PRIMARY KEY,
+        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        action VARCHAR(50) NOT NULL,
+        entity_type VARCHAR(50) NOT NULL,
+        entity_id VARCHAR(100) NOT NULL,
+        user VARCHAR(100),
+        details JSONB,
+        ip_address VARCHAR(50),
+        user_agent TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS notifications (
+        id SERIAL PRIMARY KEY,
+        title VARCHAR(255) NOT NULL,
+        message TEXT NOT NULL,
+        type VARCHAR(20) DEFAULT 'info',
+        date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        read BOOLEAN DEFAULT FALSE
+    );
+
+    CREATE TABLE IF NOT EXISTS documents (
+        id SERIAL PRIMARY KEY,
+        entity_type VARCHAR(50) NOT NULL,
+        entity_id VARCHAR(100) NOT NULL,
+        file_name VARCHAR(255) NOT NULL,
+        file_path TEXT NOT NULL,
+        file_size INTEGER,
+        mime_type VARCHAR(100),
+        uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        uploaded_by VARCHAR(100),
+        version INTEGER DEFAULT 1
+    );
+
+    CREATE TABLE IF NOT EXISTS commandes (
+        id SERIAL PRIMARY KEY,
+        reference VARCHAR(100) NOT NULL UNIQUE,
+        exercice_id INTEGER,
+        budget_label_id INTEGER,
+        statut VARCHAR(50) DEFAULT 'Brouillon',
+        attributed_amount_ht NUMERIC(18, 2) DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS devis (
+        id SERIAL PRIMARY KEY,
+        bc_id INTEGER NOT NULL,
+        supplier_id INTEGER NOT NULL,
+        reference VARCHAR(100) NOT NULL,
+        date DATE NOT NULL,
+        amount_ht NUMERIC(18, 2) NOT NULL,
+        amount_ttc NUMERIC(18, 2) NOT NULL,
+        tva_amount NUMERIC(18, 2) DEFAULT 0,
+        tva_rate NUMERIC(5, 2) DEFAULT 20,
+        document_path TEXT,
+        status VARCHAR(50) DEFAULT 'Reçu',
+        observation TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS engagements (
+        id SERIAL PRIMARY KEY,
+        reference VARCHAR(100) NOT NULL UNIQUE,
+        exercice_id INTEGER NOT NULL,
+        libelle_id INTEGER NOT NULL,
+        bc_id INTEGER,
+        amount NUMERIC(18, 2) NOT NULL,
+        date DATE NOT NULL,
+        status VARCHAR(50) DEFAULT 'Brouillon',
+        observation TEXT,
+        is_partial BOOLEAN DEFAULT FALSE,
+        parent_id INTEGER,
+        created_by VARCHAR(100),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS executions (
+        id SERIAL PRIMARY KEY,
+        bc_id INTEGER NOT NULL,
+        date DATE NOT NULL,
+        type VARCHAR(50) DEFAULT 'Partielle',
+        quantite NUMERIC(18, 2) DEFAULT 0,
+        observation TEXT,
+        status VARCHAR(50) DEFAULT 'En cours',
+        advancement_pct NUMERIC(5, 2) DEFAULT 0,
+        date_prevue DATE,
+        reserved_amount NUMERIC(18, 2) DEFAULT 0,
+        service_fait BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS receptions (
+        id SERIAL PRIMARY KEY,
+        execution_id INTEGER NOT NULL,
+        reception_type VARCHAR(50) DEFAULT 'Provisoire',
+        quantite NUMERIC(18, 2) DEFAULT 0,
+        conformite VARCHAR(50) DEFAULT 'Conforme',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS penalites (
+        id SERIAL PRIMARY KEY,
+        execution_id INTEGER NOT NULL,
+        amount NUMERIC(18, 2) NOT NULL,
+        reason TEXT,
+        status VARCHAR(50) DEFAULT 'Appliquée',
+        date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS ordonnances (
+        id SERIAL PRIMARY KEY,
+        reference VARCHAR(100) NOT NULL UNIQUE,
+        bc_id INTEGER NOT NULL,
+        engagement_id INTEGER,
+        amount_ht NUMERIC(18, 2) NOT NULL,
+        amount_ttc NUMERIC(18, 2) NOT NULL,
+        tva_amount NUMERIC(18, 2) DEFAULT 0,
+        net_amount NUMERIC(18, 2) NOT NULL,
+        date DATE NOT NULL,
+        status VARCHAR(50) DEFAULT 'Brouillon',
+        observation TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS paiements (
+        id SERIAL PRIMARY KEY,
+        reference VARCHAR(100) NOT NULL UNIQUE,
+        ordonnance_id INTEGER NOT NULL,
+        fournisseur_id INTEGER NOT NULL,
+        amount NUMERIC(18, 2) NOT NULL,
+        date DATE NOT NULL,
+        mode_paiement VARCHAR(50),
+        status VARCHAR(50) DEFAULT 'En attente',
+        observation TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS rejets_paiements (
+        id SERIAL PRIMARY KEY,
+        payment_id INTEGER NOT NULL,
+        reason TEXT NOT NULL,
+        date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS virements (
+        id SERIAL PRIMARY KEY,
+        source_allocation_id INTEGER NOT NULL,
+        target_allocation_id INTEGER NOT NULL,
+        amount NUMERIC(18, 2) NOT NULL,
+        date DATE NOT NULL,
+        justification TEXT,
+        status VARCHAR(50) DEFAULT 'Brouillon',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS fournisseurs (
+        id SERIAL PRIMARY KEY,
+        company_name VARCHAR(255) NOT NULL,
+        contact_person VARCHAR(255),
+        email VARCHAR(255),
+        phone VARCHAR(50),
+        address TEXT,
+        beneficiary_type_id INTEGER,
+        status VARCHAR(20) DEFAULT 'Actif',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        username VARCHAR(100) NOT NULL UNIQUE,
+        email VARCHAR(255) NOT NULL UNIQUE,
+        full_name VARCHAR(255) NOT NULL,
+        profile_id VARCHAR(50) DEFAULT 'budget',
+        status VARCHAR(20) DEFAULT 'Actif',
+        password_hash VARCHAR(255),
+        permissions JSONB,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
     """
     seed_types = """
     INSERT INTO budget_types (code, name_fr, name_ar, status) VALUES

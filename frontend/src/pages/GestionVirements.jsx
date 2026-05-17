@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import Topbar from "../components/Topbar";
 import DeleteIconButton from "../components/DeleteIconButton";
 import { logAudit, AUDIT_ACTIONS, STORAGE_KEYS, getData, setData } from "../services/dataStore";
+import { apiFetch } from "../hooks/useApiData";
 import {
   VIREMENT_STATUS,
   getNextVirementReference,
@@ -207,6 +208,15 @@ export default function GestionVirements() {
     setData(STORAGE_KEYS.VIREMENTS, list);
   };
 
+  useEffect(() => {
+    apiFetch("/virements")
+      .then((data) => {
+        setVirements(data || []);
+        setData(STORAGE_KEYS.VIREMENTS, data || []);
+      })
+      .catch((err) => console.error("Failed to load virements:", err));
+  }, []);
+
   const [summary, setSummary] = useState({
     total: 0,
     enAttente: 0,
@@ -265,7 +275,7 @@ export default function GestionVirements() {
     return getLineTransferableCredit(exerciceId, libelleId);
   };
 
-  const submit = () => {
+  const submit = async () => {
     const validation = validateVirementPayload({
       reference: form.reference,
       exercice_id: form.exercice_id,
@@ -285,9 +295,12 @@ export default function GestionVirements() {
     const amount = Number(form.amount);
     let entry = {
       ...form,
-      _id: editId || Date.now(),
+      source_allocation_id: form.from_libelle,
+      target_allocation_id: form.to_libelle,
       amount,
-      created_at: new Date().toISOString(),
+      date: form.date,
+      justification: form.justification,
+      status: form.status,
     };
 
     if (form.status === VIREMENT_STATUS.APPLIQUE) {
@@ -299,31 +312,45 @@ export default function GestionVirements() {
       entry = {
         ...entry,
         status: VIREMENT_STATUS.APPLIQUE,
-        applied_at: new Date().toISOString(),
-        validator_id: entry.validator_id || "Superviseur",
       };
     }
 
-    if (editId) {
-      setVirements(virements.map((v) => (v._id === editId ? entry : v)));
-      logAudit(AUDIT_ACTIONS.UPDATE, "VIREMENT", editId, {
-        reference: form.reference,
-        amount,
-      });
-      setEditId(null);
-    } else {
-      setVirements([...virements, entry]);
-      logAudit(AUDIT_ACTIONS.CREATE, "VIREMENT", entry._id, {
-        reference: form.reference,
-        amount,
-      });
-    }
+    try {
+      let result;
+      if (editId) {
+        result = await apiFetch(`/virements/${editId}`, {
+          method: "PUT",
+          body: JSON.stringify(entry),
+        });
+        await logAudit(AUDIT_ACTIONS.UPDATE, "VIREMENT", editId, {
+          reference: form.reference,
+          amount,
+        });
+        setEditId(null);
+      } else {
+        result = await apiFetch("/virements", {
+          method: "POST",
+          body: JSON.stringify(entry),
+        });
+        await logAudit(AUDIT_ACTIONS.CREATE, "VIREMENT", result.id, {
+          reference: form.reference,
+          amount,
+        });
+      }
 
-    setForm(emptyForm());
-    setShowForm(false);
+      const fresh = await apiFetch("/virements");
+      setVirements(fresh || []);
+      setData(STORAGE_KEYS.VIREMENTS, fresh || []);
+
+      setForm(emptyForm());
+      setShowForm(false);
+    } catch (error) {
+      console.error("Failed to save virement:", error);
+      alert("Erreur lors de l'enregistrement du virement");
+    }
   };
 
-  const updateStatus = (id, newStatus) => {
+  const updateStatus = async (id, newStatus) => {
     const virement = virements.find((v) => v._id === id);
     if (!virement) return;
 
@@ -337,7 +364,6 @@ export default function GestionVirements() {
     let updated = {
       ...virement,
       status: newStatus,
-      updated_at: new Date().toISOString(),
     };
 
     if (newStatus === VIREMENT_STATUS.APPLIQUE) {
@@ -348,18 +374,28 @@ export default function GestionVirements() {
       }
       updated = {
         ...updated,
-        applied_at: new Date().toISOString(),
-        validator_id: updated.validator_id || "Superviseur",
       };
     }
 
-    setVirements(virements.map((v) => (v._id === id ? updated : v)));
+    try {
+      await apiFetch(`/virements/${id}`, {
+        method: "PUT",
+        body: JSON.stringify(updated),
+      });
 
-    logAudit(AUDIT_ACTIONS.STATUS_CHANGE, "VIREMENT", id, {
-      from: oldStatus,
-      to: newStatus,
-      reference: virement.reference,
-    });
+      await logAudit(AUDIT_ACTIONS.STATUS_CHANGE, "VIREMENT", id, {
+        from: oldStatus,
+        to: newStatus,
+        reference: virement.reference,
+      });
+
+      const fresh = await apiFetch("/virements");
+      setVirements(fresh || []);
+      setData(STORAGE_KEYS.VIREMENTS, fresh || []);
+    } catch (error) {
+      console.error("Failed to update virement status:", error);
+      alert("Erreur lors de la mise à jour du statut");
+    }
   };
 
   const tabs = [
@@ -960,16 +996,24 @@ export default function GestionVirements() {
                               Modifier
                             </button>
                             <DeleteIconButton
-                              onConfirm={() => {
+                              onConfirm={async () => {
                                 if (v.status === VIREMENT_STATUS.APPLIQUE) {
                                   alert(
                                     "Un virement appliqué ne peut pas être supprimé.",
                                   );
                                   return;
                                 }
-                                setVirements(
-                                  virements.filter((x) => x._id !== v._id),
-                                );
+                                try {
+                                  await apiFetch(`/virements/${v._id}`, {
+                                    method: "DELETE",
+                                  });
+                                  const fresh = await apiFetch("/virements");
+                                  setVirements(fresh || []);
+                                  setData(STORAGE_KEYS.VIREMENTS, fresh || []);
+                                } catch (error) {
+                                  console.error("Failed to delete virement:", error);
+                                  alert("Erreur lors de la suppression du virement");
+                                }
                               }}
                               message="Supprimer ce virement ?"
                             />

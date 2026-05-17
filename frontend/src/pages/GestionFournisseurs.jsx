@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import Topbar from "../components/Topbar";
 import DeleteIconButton from "../components/DeleteIconButton";
 import ActifInactifCell from "../components/ActifInactifCell";
-import { createDefaultBeneficiaryTypes } from "../data/defaultBeneficiaryTypes";
 import { getData, setData } from "../services/dataStore";
 
 const inputStyle = {
@@ -105,7 +104,7 @@ const LEGACY_BENEFICIARY_LABEL_TO_CODE = {
 
 function seedBeneficiaryTypesIfMissing() {
   if (getData("beneficiaryTypes", []).length > 0) return;
-  const defaults = createDefaultBeneficiaryTypes(Date.now());
+  const defaults = [];
   setData("beneficiaryTypes", defaults);
 }
 

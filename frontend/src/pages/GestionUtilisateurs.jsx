@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Topbar from "../components/Topbar";
 import DeleteIconButton from "../components/DeleteIconButton";
 import { STORAGE_KEYS, logAudit, AUDIT_ACTIONS, getData, setData } from "../services/dataStore";
+import { apiFetch } from "../hooks/useApiData";
 import {
   USER_PROFILES,
   getDefaultPermissions,
@@ -215,6 +216,15 @@ export default function GestionUtilisateurs() {
     setData(STORAGE_KEYS.USERS, list);
   };
 
+  useEffect(() => {
+    apiFetch("/users")
+      .then((data) => {
+        setUsers(data || []);
+        setData(STORAGE_KEYS.USERS, data || []);
+      })
+      .catch((err) => console.error("Failed to load users:", err));
+  }, []);
+
   const onProfileChange = (profileId) => {
     setForm({
       ...form,
@@ -223,45 +233,62 @@ export default function GestionUtilisateurs() {
     });
   };
 
-  const submit = () => {
+  const submit = async () => {
     if (!form.username || !form.email || !form.full_name) {
       alert("Nom d'utilisateur, email et nom complet sont obligatoires.");
       return;
     }
     const profile = USER_PROFILES.find((p) => p.id === form.profile_id);
     const entry = {
-      ...form,
-      _id: editId || Date.now(),
-      role: profile?.label || form.profile_id,
+      username: form.username,
+      email: form.email,
+      full_name: form.full_name,
+      profile_id: form.profile_id,
+      status: form.status,
+      password_hash: form.password ? form.password : undefined,
       permissions: form.permissions || getDefaultPermissions(form.profile_id),
-      updated_at: new Date().toISOString(),
     };
-    delete entry.password;
 
-    if (editId) {
-      saveUsers(users.map((u) => (u._id === editId ? entry : u)));
-      logAudit(AUDIT_ACTIONS.UPDATE, "USER", editId, {
-        username: entry.username,
-        profile: entry.profile_id,
+    try {
+      if (editId) {
+        await apiFetch(`/users/${editId}`, {
+          method: "PUT",
+          body: JSON.stringify(entry),
+        });
+        await logAudit(AUDIT_ACTIONS.UPDATE, "USER", editId, {
+          username: entry.username,
+          profile: entry.profile_id,
+        });
+        setEditId(null);
+      } else {
+        await apiFetch("/users", {
+          method: "POST",
+          body: JSON.stringify(entry),
+        });
+        await logAudit(AUDIT_ACTIONS.CREATE, "USER", entry.username, {
+          username: entry.username,
+          profile: entry.profile_id,
+        });
+      }
+
+      const fresh = await apiFetch("/users");
+      setUsers(fresh || []);
+      setData(STORAGE_KEYS.USERS, fresh || []);
+
+      setForm({
+        username: "",
+        email: "",
+        full_name: "",
+        profile_id: "budget",
+        status: "Actif",
+        password: "",
+        permissions: getDefaultPermissions("budget"),
       });
-      setEditId(null);
-    } else {
-      saveUsers([...users, entry]);
-      logAudit(AUDIT_ACTIONS.CREATE, "USER", entry._id, {
-        username: entry.username,
-        profile: entry.profile_id,
-      });
+      setShowForm(false);
+    } catch (error) {
+      console.error("Failed to save user:", error);
+      alert("Erreur lors de l'enregistrement de l'utilisateur");
     }
-    setForm({
-      username: "",
-      email: "",
-      full_name: "",
-      profile_id: "budget",
-      status: "Actif",
-      password: "",
-      permissions: getDefaultPermissions("budget"),
-    });
-    setShowForm(false);
   };
 
   return (
@@ -486,11 +513,21 @@ export default function GestionUtilisateurs() {
                         </button>
                         {u.profile_id !== "super_admin" && u.role !== "Admin" && (
                           <DeleteIconButton
-                            onConfirm={() => {
-                              saveUsers(users.filter((x) => x._id !== u._id));
-                              logAudit(AUDIT_ACTIONS.DELETE, "USER", u._id, {
-                                username: u.username,
-                              });
+                            onConfirm={async () => {
+                              try {
+                                await apiFetch(`/users/${u._id}`, {
+                                  method: "DELETE",
+                                });
+                                await logAudit(AUDIT_ACTIONS.DELETE, "USER", u._id, {
+                                  username: u.username,
+                                });
+                                const fresh = await apiFetch("/users");
+                                setUsers(fresh || []);
+                                setData(STORAGE_KEYS.USERS, fresh || []);
+                              } catch (error) {
+                                console.error("Failed to delete user:", error);
+                                alert("Erreur lors de la suppression de l'utilisateur");
+                              }
                             }}
                             message="Supprimer ?"
                           />

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import Topbar from "../components/Topbar";
 import DeleteIconButton from "../components/DeleteIconButton";
 import { logAudit, AUDIT_ACTIONS, STORAGE_KEYS, getData, setData } from "../services/dataStore";
+import { apiFetch } from "../hooks/useApiData";
 import {
   PAYMENT_STATUS,
   PAYMENT_MODES,
@@ -213,6 +214,15 @@ export default function GestionPaiements() {
     setRejets(list);
     setData(STORAGE_KEYS.PAYMENT_REJECTIONS, list);
   };
+
+  useEffect(() => {
+    apiFetch("/paiements")
+      .then((data) => {
+        setPaiements(data || []);
+        setData(STORAGE_KEYS.PAIEMENTS, data || []);
+      })
+      .catch((err) => console.error("Failed to load paiements:", err));
+  }, []);
   const [summary, setSummary] = useState({
     total: 0,
     enAttente: 0,
@@ -301,7 +311,7 @@ export default function GestionPaiements() {
     }));
   };
 
-  const submit = () => {
+  const submit = async () => {
     let status = form.status;
     const amount = Number(form.amount);
     const op = ordonnances.find((o) => String(o._id) === String(form.op_id));
@@ -337,47 +347,49 @@ export default function GestionPaiements() {
     }
 
     const entry = {
-      ...form,
-      _id: editId || Date.now(),
+      reference: form.reference,
+      ordonnance_id: form.op_id,
+      fournisseur_id: form.fournisseur_id,
       amount,
+      date: form.date,
+      mode_paiement: form.mode,
       status,
-      is_partial: status === PAYMENT_STATUS.PARTIEL,
-      created_at: new Date().toISOString(),
-      payment_date:
-        status === PAYMENT_STATUS.EFFECTUE ||
-        status === PAYMENT_STATUS.PARTIEL
-          ? form.date
-          : null,
+      observation: form.justificatif,
     };
 
-    let nextList;
-    if (editId) {
-      nextList = paiements.map((p) => (p._id === editId ? entry : p));
-      savePaiements(nextList);
-      logAudit(AUDIT_ACTIONS.UPDATE, "PAIEMENT", editId, {
-        reference: form.reference,
-        amount,
-      });
-      setEditId(null);
-    } else {
-      nextList = [...paiements, entry];
-      savePaiements(nextList);
-      logAudit(AUDIT_ACTIONS.CREATE, "PAIEMENT", entry._id, {
-        reference: form.reference,
-        amount,
-        op_id: form.op_id,
-      });
-    }
+    try {
+      if (editId) {
+        await apiFetch(`/paiements/${editId}`, {
+          method: "PUT",
+          body: JSON.stringify(entry),
+        });
+        await logAudit(AUDIT_ACTIONS.UPDATE, "PAIEMENT", editId, {
+          reference: form.reference,
+          amount,
+        });
+        setEditId(null);
+      } else {
+        const result = await apiFetch("/paiements", {
+          method: "POST",
+          body: JSON.stringify(entry),
+        });
+        await logAudit(AUDIT_ACTIONS.CREATE, "PAIEMENT", result.id, {
+          reference: form.reference,
+          amount,
+          op_id: form.op_id,
+        });
+      }
 
-    if (
-      status === PAYMENT_STATUS.EFFECTUE ||
-      status === PAYMENT_STATUS.PARTIEL
-    ) {
-      syncOrdonnanceAfterPayment(form.op_id, nextList);
-    }
+      const fresh = await apiFetch("/paiements");
+      setPaiements(fresh || []);
+      setData(STORAGE_KEYS.PAIEMENTS, fresh || []);
 
-    setForm(emptyForm());
-    setShowForm(false);
+      setForm(emptyForm());
+      setShowForm(false);
+    } catch (error) {
+      console.error("Failed to save paiement:", error);
+      alert("Erreur lors de l'enregistrement du paiement");
+    }
   };
 
   // Add a rejection
@@ -963,11 +975,19 @@ export default function GestionPaiements() {
                               </button>
                             )}
                             <DeleteIconButton
-                              onConfirm={() =>
-                                savePaiements(
-                                  paiements.filter((x) => x._id !== p._id),
-                                )
-                              }
+                              onConfirm={async () => {
+                                try {
+                                  await apiFetch(`/paiements/${p._id}`, {
+                                    method: "DELETE",
+                                  });
+                                  const fresh = await apiFetch("/paiements");
+                                  setPaiements(fresh || []);
+                                  setData(STORAGE_KEYS.PAIEMENTS, fresh || []);
+                                } catch (error) {
+                                  console.error("Failed to delete paiement:", error);
+                                  alert("Erreur lors de la suppression du paiement");
+                                }
+                              }}
                               message="Supprimer ?"
                             />
                           </div>

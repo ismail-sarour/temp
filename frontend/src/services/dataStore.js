@@ -104,29 +104,52 @@ export const AUDIT_ACTIONS = {
   CANCEL: "CANCEL",
 };
 
-export function logAudit(action, entityType, entityId, details = {}, user = null) {
-  const logs = getData(STORAGE_KEYS.AUDIT_LOGS, []);
-  const auditEntry = {
-    _id: Date.now(),
-    timestamp: new Date().toISOString(),
-    action,
-    entityType,
-    entityId,
-    user: user || getCurrentUser(),
-    details,
-    ipAddress: "N/A",
-    userAgent: navigator.userAgent,
-  };
-  logs.push(auditEntry);
-  setData(STORAGE_KEYS.AUDIT_LOGS, logs);
-  if (["VALIDATE", "REJECT", "APPROVE", "PAY"].includes(action)) {
-    createNotification(
-      `Action: ${action}`,
-      `${entityType} ${entityId} - ${action.toLowerCase()}`,
-      action === "REJECT" ? "error" : "success",
-    );
+export async function logAudit(action, entityType, entityId, details = {}, user = null) {
+  try {
+    const currentUser = user || getCurrentUser();
+    const auditEntry = {
+      action,
+      entity_type: entityType,
+      entity_id: String(entityId),
+      user: currentUser.name || currentUser.username || "Superviseur",
+      details,
+      ip_address: "N/A",
+      user_agent: navigator.userAgent,
+    };
+    
+    await apiFetch("/audit-logs", {
+      method: "POST",
+      body: JSON.stringify(auditEntry),
+    });
+    
+    if (["VALIDATE", "REJECT", "APPROVE", "PAY"].includes(action)) {
+      await createNotification(
+        `Action: ${action}`,
+        `${entityType} ${entityId} - ${action.toLowerCase()}`,
+        action === "REJECT" ? "error" : "success",
+      );
+    }
+    
+    return auditEntry;
+  } catch (error) {
+    console.error("Failed to log audit:", error);
+    // Fallback to local cache if API fails
+    const logs = getData(STORAGE_KEYS.AUDIT_LOGS, []);
+    const auditEntry = {
+      _id: Date.now(),
+      timestamp: new Date().toISOString(),
+      action,
+      entityType,
+      entityId,
+      user: user || getCurrentUser(),
+      details,
+      ipAddress: "N/A",
+      userAgent: navigator.userAgent,
+    };
+    logs.push(auditEntry);
+    setData(STORAGE_KEYS.AUDIT_LOGS, logs);
+    return auditEntry;
   }
-  return auditEntry;
 }
 
 export function generateId() {
@@ -139,19 +162,36 @@ export function getCurrentUser() {
   return { id: 1, name: "Superviseur", role: "Admin" };
 }
 
-export function createNotification(title, message, type = "info") {
-  const notifications = getData(STORAGE_KEYS.NOTIFICATIONS, []);
-  const notification = {
-    _id: Date.now(),
-    title,
-    message,
-    type,
-    date: new Date().toISOString(),
-    read: false,
-  };
-  notifications.unshift(notification);
-  setData(STORAGE_KEYS.NOTIFICATIONS, notifications);
-  return notification;
+export async function createNotification(title, message, type = "info") {
+  try {
+    const notification = {
+      title,
+      message,
+      type,
+    };
+    
+    const result = await apiFetch("/notifications", {
+      method: "POST",
+      body: JSON.stringify(notification),
+    });
+    
+    return result;
+  } catch (error) {
+    console.error("Failed to create notification:", error);
+    // Fallback to local cache if API fails
+    const notifications = getData(STORAGE_KEYS.NOTIFICATIONS, []);
+    const notification = {
+      _id: Date.now(),
+      title,
+      message,
+      type,
+      date: new Date().toISOString(),
+      read: false,
+    };
+    notifications.unshift(notification);
+    setData(STORAGE_KEYS.NOTIFICATIONS, notifications);
+    return notification;
+  }
 }
 
 export function calculateAvailableCredit(exerciceId, libelleId, options = {}) {
@@ -260,6 +300,8 @@ function getStorageKeyForType(entityType) {
   return map[entityType];
 }
 
+// NOTE: updateEntityStatus should be called via dedicated API endpoints for each entity type
+// This function is kept for backward compatibility during migration
 export function updateEntityStatus(entityType, entityId, newStatus, additionalData = {}) {
   const key = getStorageKeyForType(entityType);
   const entities = getData(key, []);
@@ -283,6 +325,7 @@ export function updateEntityStatus(entityType, entityId, newStatus, additionalDa
         }
       : e,
   );
+  // NOTE: setData is only for UI cache - actual persistence should be via API
   setData(key, updatedEntities);
   logAudit(AUDIT_ACTIONS.STATUS_CHANGE, entityType, entityId, {
     from: oldStatus,
@@ -328,33 +371,63 @@ export function getFiscalRates() {
   };
 }
 
-export function linkDocument(entityType, entityId, documentData) {
-  const documents = getData(STORAGE_KEYS.DOCUMENTS, []);
-  const document = {
-    _id: generateId(),
-    entityType,
-    entityId,
-    ...documentData,
-    uploadedAt: new Date().toISOString(),
-    uploadedBy: getCurrentUser(),
-    version: 1,
-  };
-  documents.push(document);
-  setData(STORAGE_KEYS.DOCUMENTS, documents);
-  logAudit(AUDIT_ACTIONS.CREATE, "DOCUMENT", document._id, {
-    entityType,
-    entityId,
-    fileName: documentData.fileName,
-  });
-  return document;
+export async function linkDocument(entityType, entityId, documentData) {
+  try {
+    const currentUser = getCurrentUser();
+    const document = {
+      entity_type: entityType,
+      entity_id: String(entityId),
+      file_name: documentData.fileName || documentData.file_name,
+      file_path: documentData.filePath || documentData.file_path,
+      file_size: documentData.fileSize || documentData.file_size,
+      mime_type: documentData.mimeType || documentData.mime_type,
+      uploaded_by: currentUser.name || currentUser.username || "Superviseur",
+    };
+    
+    const result = await apiFetch("/documents", {
+      method: "POST",
+      body: JSON.stringify(document),
+    });
+    
+    await logAudit(AUDIT_ACTIONS.CREATE, "DOCUMENT", result.id, {
+      entityType,
+      entityId,
+      fileName: document.file_name,
+    });
+    
+    return result;
+  } catch (error) {
+    console.error("Failed to link document:", error);
+    // Fallback to local cache if API fails
+    const documents = getData(STORAGE_KEYS.DOCUMENTS, []);
+    const document = {
+      _id: generateId(),
+      entityType,
+      entityId,
+      ...documentData,
+      uploadedAt: new Date().toISOString(),
+      uploadedBy: getCurrentUser(),
+      version: 1,
+    };
+    documents.push(document);
+    setData(STORAGE_KEYS.DOCUMENTS, documents);
+    return document;
+  }
 }
 
-export function getEntityDocuments(entityType, entityId) {
-  const documents = getData(STORAGE_KEYS.DOCUMENTS, []);
-  return documents.filter(
-    (d) =>
-      d.entityType === entityType && String(d.entityId) === String(entityId),
-  );
+export async function getEntityDocuments(entityType, entityId) {
+  try {
+    const documents = await apiFetch(`/documents?entity_type=${entityType}&entity_id=${entityId}`);
+    return documents;
+  } catch (error) {
+    console.error("Failed to get entity documents:", error);
+    // Fallback to local cache if API fails
+    const documents = getData(STORAGE_KEYS.DOCUMENTS, []);
+    return documents.filter(
+      (d) =>
+        d.entityType === entityType && String(d.entityId) === String(entityId),
+    );
+  }
 }
 
 export function exportToCSV(data, filename) {

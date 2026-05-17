@@ -10,6 +10,7 @@ import {
   calculateNetAmount,
   getFiscalRates,
 } from "../services/dataStore";
+import { apiFetch } from "../hooks/useApiData";
 import {
   validateOrdonnancePayload,
   getNextOpReference,
@@ -210,6 +211,15 @@ export default function GestionOrdonnancement() {
     setOrdonnances(list);
     setData(STORAGE_KEYS.ORDONNANCES, list);
   };
+
+  useEffect(() => {
+    apiFetch("/ordonnances")
+      .then((data) => {
+        setOrdonnances(data || []);
+        setData(STORAGE_KEYS.ORDONNANCES, data || []);
+      })
+      .catch((err) => console.error("Failed to load ordonnances:", err));
+  }, []);
   const [fiscalRates, setFiscalRates] = useState({
     vatRates: [],
     rasRates: [],
@@ -305,7 +315,7 @@ export default function GestionOrdonnancement() {
       .reduce((sum, o) => sum + (Number(o.net_amount) || 0), 0);
   };
 
-  const submit = () => {
+  const submit = async () => {
     const validation = validateOrdonnancePayload({
       reference: form.reference,
       fournisseur_id: form.fournisseur_id,
@@ -331,53 +341,66 @@ export default function GestionOrdonnancement() {
     });
 
     const entry = {
-      ...form,
-      _id: editId || Date.now(),
+      reference: form.reference,
+      bc_id: form.bc_id,
+      engagement_id: form.execution_id,
       amount_ht: ht,
-      tva_rate: tvaRate,
-      tva_amount: calculation.tvaAmount,
-      ras_rate: rasRate,
-      ras_amount: calculation.rasAmount,
-      other_retenues: otherRetenues,
       amount_ttc: calculation.amountTTC,
+      tva_amount: calculation.tvaAmount,
       net_amount: calculation.netAmount,
-      created_at: new Date().toISOString(),
+      date: form.date,
+      status: form.status,
+      observation: form.observation,
     };
 
-    if (editId) {
-      saveOrdonnances(ordonnances.map((o) => (o._id === editId ? entry : o)));
-      logAudit(AUDIT_ACTIONS.UPDATE, "ORDONNANCE", editId, {
-        reference: form.reference,
-        net_amount: calculation.netAmount,
-      });
-      setEditId(null);
-    } else {
-      saveOrdonnances([...ordonnances, entry]);
-      logAudit(AUDIT_ACTIONS.CREATE, "ORDONNANCE", entry._id, {
-        reference: form.reference,
-        net_amount: calculation.netAmount,
-        bc_id: form.bc_id,
-      });
-    }
+    try {
+      if (editId) {
+        await apiFetch(`/ordonnances/${editId}`, {
+          method: "PUT",
+          body: JSON.stringify(entry),
+        });
+        await logAudit(AUDIT_ACTIONS.UPDATE, "ORDONNANCE", editId, {
+          reference: form.reference,
+          net_amount: calculation.netAmount,
+        });
+        setEditId(null);
+      } else {
+        const result = await apiFetch("/ordonnances", {
+          method: "POST",
+          body: JSON.stringify(entry),
+        });
+        await logAudit(AUDIT_ACTIONS.CREATE, "ORDONNANCE", result.id, {
+          reference: form.reference,
+          net_amount: calculation.netAmount,
+          bc_id: form.bc_id,
+        });
+      }
 
-    setForm({
-      reference: getNextOpReference(),
-      fournisseur_id: "",
-      bc_id: "",
-      execution_id: "",
-      amount_ht: "",
-      tva_rate: 20,
-      tva: "",
-      ras_rate: 0,
-      ras: "",
-      other_retenues: "",
-      invoice_ref: "",
-      date: new Date().toISOString().split("T")[0],
-      status: OP_STATUS.BROUILLON,
-      observation: "",
-      linked_documents: [],
-    });
-    setShowForm(false);
+      const fresh = await apiFetch("/ordonnances");
+      setOrdonnances(fresh || []);
+      setData(STORAGE_KEYS.ORDONNANCES, fresh || []);
+
+      setForm({
+        reference: getNextOpReference(),
+        fournisseur_id: "",
+        bc_id: "",
+        execution_id: "",
+        amount_ht: "",
+        tva_rate: 20,
+        tva: "",
+        ras_rate: 0,
+        ras: "",
+        other_retenues: "",
+        invoice_ref: "",
+        date: new Date().toISOString().split("T")[0],
+        status: OP_STATUS.BROUILLON,
+        observation: "",
+      });
+      setShowForm(false);
+    } catch (error) {
+      console.error("Failed to save ordonnance:", error);
+      alert("Erreur lors de l'enregistrement de l'ordonnance");
+    }
   };
 
   const updateStatus = (id, newStatus) => {
@@ -734,9 +757,19 @@ export default function GestionOrdonnancement() {
                           Modifier
                         </button>
                         <DeleteIconButton
-                          onConfirm={() =>
-                            save(ordonnances.filter((x) => x._id !== o._id))
-                          }
+                          onConfirm={async () => {
+                            try {
+                              await apiFetch(`/ordonnances/${o._id}`, {
+                                method: "DELETE",
+                              });
+                              const fresh = await apiFetch("/ordonnances");
+                              setOrdonnances(fresh || []);
+                              setData(STORAGE_KEYS.ORDONNANCES, fresh || []);
+                            } catch (error) {
+                              console.error("Failed to delete ordonnance:", error);
+                              alert("Erreur lors de la suppression de l'ordonnance");
+                            }
+                          }}
                           message="Supprimer ?"
                         />
                       </div>
