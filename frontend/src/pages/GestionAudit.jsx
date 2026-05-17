@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
 import Topbar from "../components/Topbar";
-import useLocalStorage from "../hooks/useLocalStorage";
 import {
   STORAGE_KEYS,
   AUDIT_ACTIONS,
   exportToCSV,
   exportToJSON,
+  getData,
 } from "../services/dataStore";
 
 const thStyle = {
@@ -86,7 +86,7 @@ const EntityTypeBadge = ({ type }) => {
 };
 
 export default function GestionAudit() {
-  const [logs, setLogs] = useLocalStorage(STORAGE_KEYS.AUDIT_LOGS, []);
+  const [logs, setLogs] = useState(() => getData(STORAGE_KEYS.AUDIT_LOGS, []));
   const [filteredLogs, setFilteredLogs] = useState([]);
   const [filterAction, setFilterAction] = useState("all");
   const [filterEntityType, setFilterEntityType] = useState("all");

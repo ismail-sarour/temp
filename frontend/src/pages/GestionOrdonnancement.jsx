@@ -10,7 +10,6 @@ import {
   calculateNetAmount,
   getFiscalRates,
 } from "../services/dataStore";
-import useLocalStorage from "../hooks/useLocalStorage";
 import {
   validateOrdonnancePayload,
   getNextOpReference,
@@ -203,12 +202,14 @@ const StatusBadge = ({ status }) => {
 const formatNumber = (v) => Number(v || 0).toLocaleString("fr-FR");
 
 export default function GestionOrdonnancement() {
-  const [ordonnances, setOrdonnances] = useLocalStorage(
-    STORAGE_KEYS.ORDONNANCES,
-    [],
-  );
-  const [commandes] = useLocalStorage(STORAGE_KEYS.COMMANDES, []);
-  const [suppliers] = useLocalStorage(STORAGE_KEYS.FOURNISSEURS, []);
+  const [ordonnances, setOrdonnances] = useState(() => getData(STORAGE_KEYS.ORDONNANCES, []));
+  const [commandes] = useState(() => getData(STORAGE_KEYS.COMMANDES, []));
+  const [suppliers] = useState(() => getData(STORAGE_KEYS.FOURNISSEURS, []));
+
+  const saveOrdonnances = (list) => {
+    setOrdonnances(list);
+    setData(STORAGE_KEYS.ORDONNANCES, list);
+  };
   const [fiscalRates, setFiscalRates] = useState({
     vatRates: [],
     rasRates: [],
@@ -344,14 +345,14 @@ export default function GestionOrdonnancement() {
     };
 
     if (editId) {
-      setOrdonnances(ordonnances.map((o) => (o._id === editId ? entry : o)));
+      saveOrdonnances(ordonnances.map((o) => (o._id === editId ? entry : o)));
       logAudit(AUDIT_ACTIONS.UPDATE, "ORDONNANCE", editId, {
         reference: form.reference,
         net_amount: calculation.netAmount,
       });
       setEditId(null);
     } else {
-      setOrdonnances([...ordonnances, entry]);
+      saveOrdonnances([...ordonnances, entry]);
       logAudit(AUDIT_ACTIONS.CREATE, "ORDONNANCE", entry._id, {
         reference: form.reference,
         net_amount: calculation.netAmount,
@@ -406,7 +407,7 @@ export default function GestionOrdonnancement() {
       return;
     }
 
-    setOrdonnances(updatedOrdonnances);
+    saveOrdonnances(updatedOrdonnances);
 
     logAudit(AUDIT_ACTIONS.STATUS_CHANGE, "ORDONNANCE", id, {
       from: oldStatus,

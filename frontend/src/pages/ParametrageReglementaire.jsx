@@ -194,7 +194,7 @@ export default function ParametrageReglementaire() {
   const [editDocId, setEditDocId] = useState(null);
   const [showDocForm, setShowDocForm] = useState(false);
 
-  // LOAD FROM LOCALSTORAGE
+  // LOAD FROM DATA STORE
   useEffect(() => {
     const vat = getData("vatRates");
     const ras = getData("rasRates");

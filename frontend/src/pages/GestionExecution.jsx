@@ -9,7 +9,6 @@ import {
   setData,
   linkDocument,
 } from "../services/dataStore";
-import useLocalStorage from "../hooks/useLocalStorage";
 import {
   getBcsForExecution,
   markServiceFait,
@@ -204,10 +203,25 @@ const formatNumber = (value) => Number(value || 0).toLocaleString("fr-FR");
 
 export default function GestionExecution() {
   const [tab, setTab] = useState("executions");
-  const [executions, setExecutions] = useLocalStorage(STORAGE_KEYS.EXECUTIONS, []);
-  const [receptions, setReceptions] = useLocalStorage(STORAGE_KEYS.RECEPTIONS, []);
-  const [penalites, setPenalites] = useLocalStorage(STORAGE_KEYS.PENALITES, []);
-  const [commandes, setCommandes] = useLocalStorage(STORAGE_KEYS.COMMANDES, []);
+  const [executions, setExecutions] = useState(() => getData(STORAGE_KEYS.EXECUTIONS, []));
+  const [receptions, setReceptions] = useState(() => getData(STORAGE_KEYS.RECEPTIONS, []));
+  const [penalites, setPenalites] = useState(() => getData(STORAGE_KEYS.PENALITES, []));
+  const [commandes, setCommandes] = useState(() => getData(STORAGE_KEYS.COMMANDES, []));
+
+  const saveExecutions = (list) => {
+    setExecutions(list);
+    setData(STORAGE_KEYS.EXECUTIONS, list);
+  };
+
+  const saveReceptions = (list) => {
+    setReceptions(list);
+    setData(STORAGE_KEYS.RECEPTIONS, list);
+  };
+
+  const savePenalites = (list) => {
+    setPenalites(list);
+    setData(STORAGE_KEYS.PENALITES, list);
+  };
   const [form, setForm] = useState({
     bc_id: "",
     date: new Date().toISOString().split("T")[0],
@@ -250,14 +264,14 @@ export default function GestionExecution() {
     };
 
     if (editId) {
-      setExecutions(executions.map((e) => (e._id === editId ? entry : e)));
+      saveExecutions(executions.map((e) => (e._id === editId ? entry : e)));
       logAudit(AUDIT_ACTIONS.UPDATE, "EXECUTION", editId, {
         advancement: entry.advancement_pct,
         status: entry.status,
       });
       setEditId(null);
     } else {
-      setExecutions([...executions, entry]);
+      saveExecutions([...executions, entry]);
       const bcs = commandes.map((bc) =>
         String(bc._id) === String(form.bc_id)
           ? { ...bc, statut: BC_STATUS.EN_COURS }
@@ -294,13 +308,13 @@ export default function GestionExecution() {
       alert("Impossible de supprimer une exécution avec service fait validé.");
       return;
     }
-    setExecutions(executions.filter((e) => e._id !== _id));
+    saveExecutions(executions.filter((e) => e._id !== _id));
   };
   const updateExecutionStatus = (id, status) => {
     const execution = executions.find((e) => e._id === id);
     const oldStatus = execution?.status;
 
-    setExecutions(
+    saveExecutions(
       executions.map((e) =>
         e._id === id
           ? { ...e, status, updated_at: new Date().toISOString() }
@@ -351,7 +365,7 @@ export default function GestionExecution() {
       conformite: receptionForm.conformite || "Conforme",
       created_at: new Date().toISOString(),
     };
-    setReceptions([...receptions, entry]);
+    saveReceptions([...receptions, entry]);
 
     if (receptionForm.type === "Définitive") {
       updateExecutionStatus(
@@ -450,7 +464,7 @@ export default function GestionExecution() {
       date: new Date().toISOString(),
       status: "Appliquée",
     };
-    setPenalites([...penalites, penalty]);
+    savePenalites([...penalites, penalty]);
 
     logAudit(AUDIT_ACTIONS.CREATE, "PENALITE", penalty._id, {
       execution_id: execId,

@@ -8,8 +8,9 @@ import {
   STORAGE_KEYS,
   checkCreditAvailability,
   calculateAvailableCredit,
+  getData,
+  setData,
 } from "../services/dataStore";
-import useLocalStorage from "../hooks/useLocalStorage";
 import {
   validateEngagementStatus,
   ENGAGEMENT_STATUS,
@@ -219,11 +220,13 @@ export default function GestionEngagements() {
   const [tab, setTab] = useState("engagements");
 
   // STATE
-  const [engagements, setEngagements] = useLocalStorage(
-    STORAGE_KEYS.ENGAGEMENTS,
-    [],
-  );
-  const [commandes] = useLocalStorage(STORAGE_KEYS.COMMANDES, []);
+  const [engagements, setEngagements] = useState(() => getData(STORAGE_KEYS.ENGAGEMENTS, []));
+  const [commandes] = useState(() => getData(STORAGE_KEYS.COMMANDES, []));
+
+  const saveEngagements = (list) => {
+    setEngagements(list);
+    setData(STORAGE_KEYS.ENGAGEMENTS, list);
+  };
   const [creditInfo, setCreditInfo] = useState(null);
   const [form, setForm] = useState({
     reference: "",
@@ -254,9 +257,9 @@ export default function GestionEngagements() {
     }
   }, [form.exercice_id, form.libelle_id, editId]);
 
-  const [exercices] = useLocalStorage(STORAGE_KEYS.EXERCICES, []);
-  const [libelles] = useLocalStorage(STORAGE_KEYS.LIBELLES, []);
-  const [allocations] = useLocalStorage(STORAGE_KEYS.BUDGET_ALLOCATIONS, []);
+  const [exercices] = useState(() => getData(STORAGE_KEYS.EXERCICES, []));
+  const [libelles] = useState(() => getData(STORAGE_KEYS.LIBELLES, []));
+  const [allocations] = useState(() => getData(STORAGE_KEYS.BUDGET_ALLOCATIONS, []));
 
   const getExerciceLabel = (id) => {
     const ex = exercices.find((e) => String(e._id) === String(id));
@@ -367,15 +370,14 @@ export default function GestionEngagements() {
 
     // Log audit
     if (editId) {
-      setEngagements(engagements.map((e) => (e._id === editId ? entry : e)));
+      saveEngagements(engagements.map((e) => (e._id === editId ? entry : e)));
       logAudit(AUDIT_ACTIONS.UPDATE, "ENGAGEMENT", editId, {
         reference: form.reference,
         amount: amount,
-        status: form.status,
       });
       setEditId(null);
     } else {
-      setEngagements([...engagements, entry]);
+      saveEngagements([...engagements, entry]);
       logAudit(AUDIT_ACTIONS.CREATE, "ENGAGEMENT", entry._id, {
         reference: form.reference,
         amount: amount,
@@ -416,7 +418,7 @@ export default function GestionEngagements() {
       alert("Un engagement validé ou clôturé ne peut pas être supprimé.");
       return;
     }
-    setEngagements(engagements.filter((e) => e._id !== _id));
+    saveEngagements(engagements.filter((e) => e._id !== _id));
   };
 
   const updateStatus = (id, newStatus) => {
@@ -444,7 +446,7 @@ export default function GestionEngagements() {
           }
         : e,
     );
-    setEngagements(updatedEngagements);
+    saveEngagements(updatedEngagements);
 
     // Log audit
     logAudit(AUDIT_ACTIONS.STATUS_CHANGE, "ENGAGEMENT", id, {

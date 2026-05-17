@@ -42,11 +42,6 @@ Le proxy Vite redirige `/api` vers `http://127.0.0.1:5000`.
 | Zone | Endpoints |
 |------|-----------|
 | **Module 1** (exercices & budget) | `GET/POST/PUT/DELETE /api/exercises`, `/api/budget-types`, `/api/annual-budgets` |
-| **Modules 2–17** (données JSON) | `GET/PUT /api/collections/{nom}` |
 | **Tableau de bord** | `GET /api/dashboard/summary` |
 
-Les collections PostgreSQL (`app_collections`) remplacent `localStorage`. Votre collègue peut remplacer progressivement chaque collection par des tables relationnelles dédiées.
-
-### Collections utilisées
-
-`familles`, `categories`, `natures`, `libelles`, `vatRates`, `budgetAllocations`, `fournisseurs`, `commandes`, `devis`, `engagements`, `ordonnances`, `paiements`, etc. (voir `frontend/src/services/dataStore.js` → `COLLECTION_KEYS`).
+Le dashboard utilise PostgreSQL via des endpoints dédiés. Les modules 2-17 utiliseront des endpoints dédiés à implémenter.

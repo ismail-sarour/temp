@@ -1,13 +1,7 @@
 import { useState, useEffect } from "react";
 import Topbar from "../components/Topbar";
 import DeleteIconButton from "../components/DeleteIconButton";
-import {
-  usePaiements,
-  useFournisseurs,
-  useOrdonnances,
-} from "../hooks/useLocalStorage";
-import { logAudit, AUDIT_ACTIONS, STORAGE_KEYS } from "../services/dataStore";
-import useLocalStorage from "../hooks/useLocalStorage";
+import { logAudit, AUDIT_ACTIONS, STORAGE_KEYS, getData, setData } from "../services/dataStore";
 import {
   PAYMENT_STATUS,
   PAYMENT_MODES,
@@ -205,13 +199,20 @@ const StatusBadge = ({ status }) => {
 const formatNumber = (v) => Number(v || 0).toLocaleString("fr-FR");
 
 export default function GestionPaiements() {
-  const [paiements, setPaiements] = usePaiements();
-  const [fournisseurs] = useFournisseurs();
-  const [ordonnances] = useOrdonnances();
-  const [rejets, setRejets] = useLocalStorage(
-    STORAGE_KEYS.PAYMENT_REJECTIONS,
-    [],
-  );
+  const [paiements, setPaiements] = useState(() => getData(STORAGE_KEYS.PAIEMENTS, []));
+  const [fournisseurs] = useState(() => getData(STORAGE_KEYS.FOURNISSEURS, []));
+  const [ordonnances] = useState(() => getData(STORAGE_KEYS.ORDONNANCES, []));
+  const [rejets, setRejets] = useState(() => getData(STORAGE_KEYS.PAYMENT_REJECTIONS, []));
+
+  const savePaiements = (list) => {
+    setPaiements(list);
+    setData(STORAGE_KEYS.PAIEMENTS, list);
+  };
+
+  const saveRejets = (list) => {
+    setRejets(list);
+    setData(STORAGE_KEYS.PAYMENT_REJECTIONS, list);
+  };
   const [summary, setSummary] = useState({
     total: 0,
     enAttente: 0,
@@ -352,16 +353,15 @@ export default function GestionPaiements() {
     let nextList;
     if (editId) {
       nextList = paiements.map((p) => (p._id === editId ? entry : p));
-      setPaiements(nextList);
+      savePaiements(nextList);
       logAudit(AUDIT_ACTIONS.UPDATE, "PAIEMENT", editId, {
         reference: form.reference,
         amount,
-        status,
       });
       setEditId(null);
     } else {
       nextList = [...paiements, entry];
-      setPaiements(nextList);
+      savePaiements(nextList);
       logAudit(AUDIT_ACTIONS.CREATE, "PAIEMENT", entry._id, {
         reference: form.reference,
         amount,
@@ -396,7 +396,7 @@ export default function GestionPaiements() {
       status: "Enregistré",
     };
 
-    setRejets([...rejets, rejet]);
+    saveRejets([...rejets, rejet]);
 
     // Update payment status
     const updatedPaiements = paiements.map((p) =>
@@ -408,7 +408,7 @@ export default function GestionPaiements() {
           }
         : p,
     );
-    setPaiements(updatedPaiements);
+    savePaiements(updatedPaiements);
 
     // Log audit
     logAudit(AUDIT_ACTIONS.STATUS_CHANGE, "PAIEMENT", rejetForm.payment_id, {
@@ -964,7 +964,7 @@ export default function GestionPaiements() {
                             )}
                             <DeleteIconButton
                               onConfirm={() =>
-                                setPaiements(
+                                savePaiements(
                                   paiements.filter((x) => x._id !== p._id),
                                 )
                               }

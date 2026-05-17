@@ -7,8 +7,8 @@ import {
   AUDIT_ACTIONS,
   STORAGE_KEYS,
   getData,
+  setData,
 } from "../services/dataStore";
-import useLocalStorage from "../hooks/useLocalStorage";
 import {
   onDevisRecorded,
   processAttribution,
@@ -219,18 +219,32 @@ const formatNumber = (value) => Number(value || 0).toLocaleString("fr-FR");
 export default function GestionDevis() {
   const [tab, setTab] = useState("devis");
 
-  const [devis, setDevis] = useLocalStorage(STORAGE_KEYS.DEVIS, []);
-  const [comparaisons, setComparaisons] = useLocalStorage(
-    STORAGE_KEYS.DEVIS_COMPARAISONS,
-    [],
-  );
-  const [attributions, setAttributions] = useLocalStorage(
-    STORAGE_KEYS.DEVIS_ATTRIBUTIONS,
-    [],
-  );
-  const [devisHistory, setDevisHistory] = useLocalStorage("devisHistory", []);
-  const [commandes] = useLocalStorage(STORAGE_KEYS.COMMANDES, []);
-  const [suppliers] = useLocalStorage(STORAGE_KEYS.FOURNISSEURS, []);
+  const [devis, setDevis] = useState(() => getData(STORAGE_KEYS.DEVIS, []));
+  const [comparaisons, setComparaisons] = useState(() => getData(STORAGE_KEYS.DEVIS_COMPARAISONS, []));
+  const [attributions, setAttributions] = useState(() => getData(STORAGE_KEYS.DEVIS_ATTRIBUTIONS, []));
+  const [devisHistory, setDevisHistory] = useState(() => getData("devisHistory", []));
+  const [commandes] = useState(() => getData(STORAGE_KEYS.COMMANDES, []));
+  const [suppliers] = useState(() => getData(STORAGE_KEYS.FOURNISSEURS, []));
+
+  const saveDevis = (list) => {
+    setDevis(list);
+    setData(STORAGE_KEYS.DEVIS, list);
+  };
+
+  const saveComparaisons = (list) => {
+    setComparaisons(list);
+    setData(STORAGE_KEYS.DEVIS_COMPARAISONS, list);
+  };
+
+  const saveAttributions = (list) => {
+    setAttributions(list);
+    setData(STORAGE_KEYS.DEVIS_ATTRIBUTIONS, list);
+  };
+
+  const saveDevisHistory = (list) => {
+    setDevisHistory(list);
+    setData("devisHistory", list);
+  };
 
   // FORMS
   const [devisForm, setDevisForm] = useState({
@@ -309,13 +323,13 @@ export default function GestionDevis() {
     };
 
     if (editDevisId) {
-      setDevis(devis.map((d) => (d._id === editDevisId ? entry : d)));
+      saveDevis(devis.map((d) => (d._id === editDevisId ? entry : d)));
       logAudit(AUDIT_ACTIONS.UPDATE, "DEVIS", editDevisId, {
         reference: entry.reference,
       });
       setEditDevisId(null);
     } else {
-      setDevis([...devis, entry]);
+      saveDevis([...devis, entry]);
       onDevisRecorded(devisForm.bc_id);
       logAudit(AUDIT_ACTIONS.CREATE, "DEVIS", entry._id, {
         reference: entry.reference,
@@ -349,7 +363,7 @@ export default function GestionDevis() {
       alert("Impossible de supprimer un devis retenu.");
       return;
     }
-    setDevis(devis.filter((d) => d._id !== _id));
+    saveDevis(devis.filter((d) => d._id !== _id));
     logAudit(AUDIT_ACTIONS.DELETE, "DEVIS", _id, { reference: item?.reference });
   };
 
@@ -358,7 +372,7 @@ export default function GestionDevis() {
     const updatedDevis = devis.map((d) =>
       d._id === id ? { ...d, status } : d,
     );
-    setDevis(updatedDevis);
+    saveDevis(updatedDevis);
 
     // Log history
     if (oldDevis && oldDevis.status !== status) {
@@ -372,7 +386,7 @@ export default function GestionDevis() {
         date: new Date().toISOString(),
         user: "Superviseur",
       };
-      setDevisHistory([...devisHistory, historyEntry]);
+      saveDevisHistory([...devisHistory, historyEntry]);
 
       // Log audit
       logAudit(AUDIT_ACTIONS.STATUS_CHANGE, "DEVIS", id, {
@@ -391,7 +405,7 @@ export default function GestionDevis() {
       alert("Aucun devis à comparer.");
       return;
     }
-    setComparaisons(buildComparaisons(devis, getBcLabel, getSupplierLabel));
+    saveComparaisons(buildComparaisons(devis, getBcLabel, getSupplierLabel));
   };
 
   // ═════════════════════════════════════════════════════════════════
@@ -427,7 +441,7 @@ export default function GestionDevis() {
     }
 
     const freshDevis = getData(STORAGE_KEYS.DEVIS, []);
-    setDevis(freshDevis);
+    saveDevis(freshDevis);
 
     const historyEntry = {
       _id: Date.now(),
@@ -439,10 +453,10 @@ export default function GestionDevis() {
       date: new Date().toISOString(),
       user: "Superviseur",
     };
-    setDevisHistory([...devisHistory, historyEntry]);
+    saveDevisHistory([...devisHistory, historyEntry]);
 
     const freshAttr = getData(STORAGE_KEYS.DEVIS_ATTRIBUTIONS, []);
-    setAttributions(freshAttr);
+    saveAttributions(freshAttr);
 
     setAttributionForm({
       bc_id: "",

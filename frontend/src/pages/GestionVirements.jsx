@@ -1,8 +1,7 @@
 import { useState, useEffect } from "react";
 import Topbar from "../components/Topbar";
 import DeleteIconButton from "../components/DeleteIconButton";
-import { logAudit, AUDIT_ACTIONS, STORAGE_KEYS } from "../services/dataStore";
-import useLocalStorage from "../hooks/useLocalStorage";
+import { logAudit, AUDIT_ACTIONS, STORAGE_KEYS, getData, setData } from "../services/dataStore";
 import {
   VIREMENT_STATUS,
   getNextVirementReference,
@@ -198,13 +197,15 @@ const StatusBadge = ({ status }) => {
 const formatNumber = (v) => Number(v || 0).toLocaleString("fr-FR");
 
 export default function GestionVirements() {
-  const [virements, setVirements] = useLocalStorage(STORAGE_KEYS.VIREMENTS, []);
-  const [allocations, setAllocations] = useLocalStorage(
-    STORAGE_KEYS.BUDGET_ALLOCATIONS,
-    [],
-  );
-  const [exercices] = useLocalStorage(STORAGE_KEYS.EXERCICES, []);
-  const [libelles] = useLocalStorage(STORAGE_KEYS.LIBELLES, []);
+  const [virements, setVirements] = useState(() => getData(STORAGE_KEYS.VIREMENTS, []));
+  const [allocations, setAllocations] = useState(() => getData(STORAGE_KEYS.BUDGET_ALLOCATIONS, []));
+  const [exercices] = useState(() => getData(STORAGE_KEYS.EXERCICES, []));
+  const [libelles] = useState(() => getData(STORAGE_KEYS.LIBELLES, []));
+
+  const saveVirements = (list) => {
+    setVirements(list);
+    setData(STORAGE_KEYS.VIREMENTS, list);
+  };
 
   const [summary, setSummary] = useState({
     total: 0,

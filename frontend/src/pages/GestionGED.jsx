@@ -1,9 +1,7 @@
 import { useState, useEffect } from "react";
 import Topbar from "../components/Topbar";
 import DeleteIconButton from "../components/DeleteIconButton";
-import { logAudit, AUDIT_ACTIONS, linkDocument } from "../services/dataStore";
-import useLocalStorage from "../hooks/useLocalStorage";
-import { STORAGE_KEYS, getData } from "../services/dataStore";
+import { logAudit, AUDIT_ACTIONS, linkDocument, STORAGE_KEYS, getData, setData } from "../services/dataStore";
 import {
   GED_DOC_TYPES,
   getGedDocuments,
@@ -186,11 +184,11 @@ export default function GestionGED() {
   const [editId, setEditId] = useState(null);
   const [showForm, setShowForm] = useState(false);
 
-  const [commandes] = useLocalStorage(STORAGE_KEYS.COMMANDES, []);
-  const [suppliers] = useLocalStorage(STORAGE_KEYS.FOURNISSEURS, []);
-  const [engagements] = useLocalStorage(STORAGE_KEYS.ENGAGEMENTS, []);
-  const [ordonnances] = useLocalStorage(STORAGE_KEYS.ORDONNANCES, []);
-  const [exercices] = useLocalStorage(STORAGE_KEYS.EXERCICES, []);
+  const [commandes] = useState(() => getData(STORAGE_KEYS.COMMANDES, []));
+  const [suppliers] = useState(() => getData(STORAGE_KEYS.FOURNISSEURS, []));
+  const [engagements] = useState(() => getData(STORAGE_KEYS.ENGAGEMENTS, []));
+  const [ordonnances] = useState(() => getData(STORAGE_KEYS.ORDONNANCES, []));
+  const [exercices] = useState(() => getData(STORAGE_KEYS.EXERCICES, []));
 
   const save = (list) => {
     setDocuments(list);

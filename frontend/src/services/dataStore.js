@@ -1,6 +1,6 @@
 /**
  * API-backed data store (PostgreSQL via Flask).
- * Module 1: dedicated REST endpoints. Modules 2–17: JSON collections API.
+ * All modules use dedicated REST endpoints.
  */
 import { apiFetch } from "../hooks/useApiData";
 
@@ -34,93 +34,11 @@ export const STORAGE_KEYS = {
   SETTINGS: "settings",
 };
 
-/** Keys persisted via PUT /api/collections/{name} */
-export const COLLECTION_KEYS = [
-  "familles",
-  "categories",
-  "natures",
-  "libelles",
-  "vatRates",
-  "rasRates",
-  "taxRules",
-  "nomenclatureTaxRules",
-  "procurementMethods",
-  "procurementThresholds",
-  "documentTypes",
-  "paymentMethods",
-  "financialInstitutions",
-  "procurementRequiredDocs",
-  "operationStatuses",
-  "beneficiaryTypes",
-  "beneficiaryTaxRules",
-  "budgetAllocations",
-  "fournisseurs",
-  "supplierBankAccounts",
-  "supplierDocuments",
-  "commandes",
-  "bcStatusHistory",
-  "devis",
-  "devisComparaisons",
-  "devisAttributions",
-  "devisHistory",
-  "engagements",
-  "executions",
-  "receptions",
-  "penalites",
-  "ordonnances",
-  "paiements",
-  "rejets_paiements",
-  "virements",
-  "documents",
-  "ged_documents",
-  "ged_versions",
-  "auditLogs",
-  "users",
-  "notifications",
-  "currentUser",
-  STORAGE_KEYS.DEVIS,
-  STORAGE_KEYS.DEVIS_COMPARAISONS,
-  STORAGE_KEYS.DEVIS_ATTRIBUTIONS,
-  STORAGE_KEYS.ENGAGEMENTS,
-  STORAGE_KEYS.EXECUTIONS,
-  STORAGE_KEYS.RECEPTIONS,
-  STORAGE_KEYS.PENALITES,
-  STORAGE_KEYS.ORDONNANCES,
-  STORAGE_KEYS.PAIEMENTS,
-  STORAGE_KEYS.PAYMENT_REJECTIONS,
-  STORAGE_KEYS.VIREMENTS,
-  STORAGE_KEYS.DOCUMENTS,
-  STORAGE_KEYS.GED_DOCUMENTS,
-  STORAGE_KEYS.GED_VERSIONS,
-  STORAGE_KEYS.AUDIT_LOGS,
-  STORAGE_KEYS.USERS,
-  STORAGE_KEYS.NOTIFICATIONS,
-  STORAGE_KEYS.VAT_RATES,
-  STORAGE_KEYS.RAS_RATES,
-  STORAGE_KEYS.BUDGET_ALLOCATIONS,
-  STORAGE_KEYS.FOURNISSEURS,
-  STORAGE_KEYS.COMMANDES,
-  STORAGE_KEYS.LIBELLES,
-  STORAGE_KEYS.NATURES,
-];
-
-const MODULE1_KEYS = new Set(["exercices", "budgetTypes", "annualBudgets"]);
-
 const cache = Object.create(null);
 let ready = false;
 
 function notify(key, data) {
   window.dispatchEvent(new CustomEvent("dataStoreChange", { detail: { key, data } }));
-  window.dispatchEvent(new CustomEvent("localStorageChange", { detail: { key, value: data } }));
-}
-
-async function loadCollection(name) {
-  try {
-    const data = await apiFetch(`/collections/${encodeURIComponent(name)}`);
-    cache[name] = Array.isArray(data) ? data : [];
-  } catch {
-    cache[name] = [];
-  }
 }
 
 export async function initDataStore() {
@@ -133,15 +51,11 @@ export async function initDataStore() {
   cache.budgetTypes = budgetTypes;
   cache.annualBudgets = annualBudgets;
 
-  const uniqueKeys = [...new Set(COLLECTION_KEYS)];
-  await Promise.all(uniqueKeys.map((k) => loadCollection(k)));
-
   const cu = cache.currentUser;
   const hasUser = Array.isArray(cu) ? cu.length > 0 : Boolean(cu?.id);
   if (!hasUser) {
     const defaultUser = { id: 1, name: "Superviseur", role: "Admin" };
     cache.currentUser = [defaultUser];
-    persistCollection("currentUser", cache.currentUser).catch(console.error);
   }
 
   ready = true;
@@ -167,14 +81,6 @@ export function updateModule1Cache(partial) {
   }
 }
 
-async function persistCollection(key, data) {
-  if (MODULE1_KEYS.has(key)) return;
-  await apiFetch(`/collections/${encodeURIComponent(key)}`, {
-    method: "PUT",
-    body: data,
-  });
-}
-
 export function getData(key, defaultValue = []) {
   if (cache[key] === undefined) return defaultValue;
   return cache[key];
@@ -183,9 +89,6 @@ export function getData(key, defaultValue = []) {
 export function setData(key, data) {
   cache[key] = data;
   notify(key, data);
-  persistCollection(key, data).catch((err) => {
-    console.error(`Failed to persist collection "${key}":`, err);
-  });
 }
 
 export const AUDIT_ACTIONS = {

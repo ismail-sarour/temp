@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import Topbar from "../components/Topbar";
-import useLocalStorage from "../hooks/useLocalStorage";
-import { STORAGE_KEYS, getData } from "../services/dataStore";
+import { STORAGE_KEYS, getData, setData } from "../services/dataStore";
 import { runSystemAlertsScan } from "../services/modulesReporting";
 
 const thStyle = {
@@ -20,11 +19,13 @@ const tdStyle = (extra = {}) => ({
 });
 
 export default function GestionNotifications() {
-  const [notifications, setNotifications] = useLocalStorage(
-    STORAGE_KEYS.NOTIFICATIONS,
-    [],
-  );
+  const [notifications, setNotifications] = useState(() => getData(STORAGE_KEYS.NOTIFICATIONS, []));
   const [filter, setFilter] = useState("all");
+
+  const saveNotifications = (list) => {
+    setNotifications(list);
+    setData(STORAGE_KEYS.NOTIFICATIONS, list);
+  };
 
   useEffect(() => {
     runSystemAlertsScan();
@@ -39,13 +40,13 @@ export default function GestionNotifications() {
   };
 
   const markAsRead = (id) => {
-    setNotifications(
+    saveNotifications(
       notifications.map((n) => (n._id === id ? { ...n, read: true } : n)),
     );
   };
 
   const markAllAsRead = () => {
-    setNotifications(notifications.map((n) => ({ ...n, read: true })));
+    saveNotifications(notifications.map((n) => ({ ...n, read: true })));
   };
 
   const filteredNotifications =

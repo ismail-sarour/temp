@@ -44,10 +44,8 @@ export default function Dashboard() {
   useEffect(() => {
     refresh();
     const onChange = () => setKpis(buildDashboardKpis());
-    window.addEventListener("localStorageChange", onChange);
     window.addEventListener("dataStoreChange", onChange);
     return () => {
-      window.removeEventListener("localStorageChange", onChange);
       window.removeEventListener("dataStoreChange", onChange);
     };
   }, []);

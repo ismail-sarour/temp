@@ -43,12 +43,6 @@ def init_tables():
         budget_type_id INTEGER NOT NULL,
         amount NUMERIC(18, 2) NOT NULL DEFAULT 0
     );
-
-    CREATE TABLE IF NOT EXISTS app_collections (
-        name VARCHAR(100) PRIMARY KEY,
-        data JSONB NOT NULL DEFAULT '[]'::jsonb,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
     """
     seed_types = """
     INSERT INTO budget_types (code, name_fr, name_ar, status) VALUES
@@ -110,20 +104,4 @@ def update_annual_budget_lines(budget_id, visa_date, status, observation, lines)
                     """,
                     (budget_id, tid, amount),
                 )
-        conn.commit()
-
-
-def upsert_collection(name, data):
-    """Persist a JSON array collection (modules 2–17)."""
-    with get_conn() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                """
-                INSERT INTO app_collections (name, data)
-                VALUES (%s, %s)
-                ON CONFLICT (name) DO UPDATE
-                SET data = EXCLUDED.data, updated_at = CURRENT_TIMESTAMP
-                """,
-                (name, Json(data)),
-            )
         conn.commit()

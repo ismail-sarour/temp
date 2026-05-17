@@ -1,8 +1,7 @@
 import { useState } from "react";
 import Topbar from "../components/Topbar";
 import DeleteIconButton from "../components/DeleteIconButton";
-import useLocalStorage from "../hooks/useLocalStorage";
-import { STORAGE_KEYS, logAudit, AUDIT_ACTIONS } from "../services/dataStore";
+import { STORAGE_KEYS, logAudit, AUDIT_ACTIONS, getData, setData } from "../services/dataStore";
 import {
   USER_PROFILES,
   getDefaultPermissions,
@@ -198,7 +197,7 @@ const RoleBadge = ({ role }) => {
 };
 
 export default function GestionUtilisateurs() {
-  const [users, setUsers] = useLocalStorage(STORAGE_KEYS.USERS, []);
+  const [users, setUsers] = useState(() => getData(STORAGE_KEYS.USERS, []));
   const [form, setForm] = useState({
     username: "",
     email: "",
@@ -210,6 +209,11 @@ export default function GestionUtilisateurs() {
   });
   const [editId, setEditId] = useState(null);
   const [showForm, setShowForm] = useState(false);
+
+  const saveUsers = (list) => {
+    setUsers(list);
+    setData(STORAGE_KEYS.USERS, list);
+  };
 
   const onProfileChange = (profileId) => {
     setForm({
@@ -235,14 +239,14 @@ export default function GestionUtilisateurs() {
     delete entry.password;
 
     if (editId) {
-      setUsers(users.map((u) => (u._id === editId ? entry : u)));
+      saveUsers(users.map((u) => (u._id === editId ? entry : u)));
       logAudit(AUDIT_ACTIONS.UPDATE, "USER", editId, {
         username: entry.username,
         profile: entry.profile_id,
       });
       setEditId(null);
     } else {
-      setUsers([...users, entry]);
+      saveUsers([...users, entry]);
       logAudit(AUDIT_ACTIONS.CREATE, "USER", entry._id, {
         username: entry.username,
         profile: entry.profile_id,
@@ -483,7 +487,7 @@ export default function GestionUtilisateurs() {
                         {u.profile_id !== "super_admin" && u.role !== "Admin" && (
                           <DeleteIconButton
                             onConfirm={() => {
-                              setUsers(users.filter((x) => x._id !== u._id));
+                              saveUsers(users.filter((x) => x._id !== u._id));
                               logAudit(AUDIT_ACTIONS.DELETE, "USER", u._id, {
                                 username: u.username,
                               });
