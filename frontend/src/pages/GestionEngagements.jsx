@@ -11,6 +11,7 @@ import {
   getData,
   setData,
 } from "../services/dataStore";
+import { apiFetch } from "../hooks/useApiData";
 import {
   validateEngagementStatus,
   ENGAGEMENT_STATUS,
@@ -227,6 +228,16 @@ export default function GestionEngagements() {
     setEngagements(list);
     setData(STORAGE_KEYS.ENGAGEMENTS, list);
   };
+
+  useEffect(() => {
+    apiFetch("/engagements")
+      .then((data) => {
+        setEngagements(data || []);
+        setData(STORAGE_KEYS.ENGAGEMENTS, data || []);
+      })
+      .catch((err) => console.error("Failed to load engagements:", err));
+  }, []);
+
   const [creditInfo, setCreditInfo] = useState(null);
   const [form, setForm] = useState({
     reference: "",

@@ -263,48 +263,61 @@ export default function GestionExecution() {
   };
   const getActiveBcs = () => getBcsForExecution(commandes);
 
-  const submitExecution = () => {
+  const submitExecution = async () => {
     if (!form.bc_id || !form.date) return;
     const entry = {
-      ...form,
-      _id: editId || Date.now(),
+      bc_id: form.bc_id,
+      date: form.date,
+      type: form.type,
+      quantite: form.quantite,
+      observation: form.observation,
+      status: form.status,
       advancement_pct: Number(form.advancement_pct) || 0,
       reserved_amount: Number(form.reserved_amount) || 0,
-      created_at: new Date().toISOString(),
     };
 
-    if (editId) {
-      saveExecutions(executions.map((e) => (e._id === editId ? entry : e)));
-      logAudit(AUDIT_ACTIONS.UPDATE, "EXECUTION", editId, {
-        advancement: entry.advancement_pct,
-        status: entry.status,
+    try {
+      if (editId) {
+        await apiFetch(`/executions/${editId}`, {
+          method: "PUT",
+          body: JSON.stringify(entry),
+        });
+        await logAudit(AUDIT_ACTIONS.UPDATE, "EXECUTION", editId, {
+          advancement: entry.advancement_pct,
+          status: entry.status,
+        });
+        setEditId(null);
+      } else {
+        const result = await apiFetch("/executions", {
+          method: "POST",
+          body: JSON.stringify(entry),
+        });
+        await logAudit(AUDIT_ACTIONS.CREATE, "EXECUTION", result.id, {
+          bc_id: form.bc_id,
+          advancement: entry.advancement_pct,
+        });
+      }
+
+      const fresh = await apiFetch("/executions");
+      setExecutions(fresh || []);
+      setData(STORAGE_KEYS.EXECUTIONS, fresh || []);
+
+      setForm({
+        bc_id: "",
+        date: new Date().toISOString().split("T")[0],
+        type: "Partielle",
+        quantite: "",
+        observation: "",
+        status: "En cours",
+        advancement_pct: 0,
+        date_prevue: "",
+        reserved_amount: "",
       });
-      setEditId(null);
-    } else {
-      saveExecutions([...executions, entry]);
-      const bcs = commandes.map((bc) =>
-        String(bc._id) === String(form.bc_id)
-          ? { ...bc, statut: BC_STATUS.EN_COURS }
-          : bc,
-      );
-      setCommandes(bcs);
-      logAudit(AUDIT_ACTIONS.CREATE, "EXECUTION", entry._id, {
-        bc_id: form.bc_id,
-        advancement: entry.advancement_pct,
-      });
+      setShowForm(false);
+    } catch (error) {
+      console.error("Failed to save execution:", error);
+      alert("Erreur lors de l'enregistrement de l'exécution");
     }
-    setForm({
-      bc_id: "",
-      date: new Date().toISOString().split("T")[0],
-      type: "Partielle",
-      quantite: "",
-      observation: "",
-      status: "En cours",
-      advancement_pct: 0,
-      date_prevue: "",
-      reserved_amount: "",
-    });
-    setShowForm(false);
   };
 
   const editExecution = (e) => {
@@ -312,13 +325,23 @@ export default function GestionExecution() {
     setEditId(e._id);
     setShowForm(true);
   };
-  const deleteExecution = (_id) => {
+  const deleteExecution = async (_id) => {
     const ex = executions.find((e) => e._id === _id);
     if (ex?.service_fait) {
       alert("Impossible de supprimer une exécution avec service fait validé.");
       return;
     }
-    saveExecutions(executions.filter((e) => e._id !== _id));
+    try {
+      await apiFetch(`/executions/${_id}`, {
+        method: "DELETE",
+      });
+      const fresh = await apiFetch("/executions");
+      setExecutions(fresh || []);
+      setData(STORAGE_KEYS.EXECUTIONS, fresh || []);
+    } catch (error) {
+      console.error("Failed to delete execution:", error);
+      alert("Erreur lors de la suppression de l'exécution");
+    }
   };
   const updateExecutionStatus = (id, status) => {
     const execution = executions.find((e) => e._id === id);

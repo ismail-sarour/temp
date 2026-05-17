@@ -399,6 +399,118 @@ def delete_annual_budget(budget_id):
     return "", 204
 
 
+# ─── Budget Allocations ────────────────────────────────────────────────────────
+
+@bp.route("/budget-allocations", methods=["GET"])
+def list_budget_allocations():
+    rows = fetch_all(
+        """
+        SELECT 
+            abl.id as _id,
+            abl.annual_budget_id,
+            abl.budget_type_id as libelle_id,
+            ab.exercise_id as exercice_id,
+            abl.amount,
+            bt.code,
+            bt.name_fr,
+            bt.name_ar
+        FROM annual_budget_lines abl
+        JOIN annual_budgets ab ON abl.annual_budget_id = ab.id
+        JOIN budget_types bt ON abl.budget_type_id = bt.id
+        ORDER BY ab.exercise_id DESC, bt.code
+        """
+    )
+    return jsonify([dict(r) for r in rows])
+
+
+@bp.route("/budget-allocations", methods=["POST"])
+def create_budget_allocation():
+    data = request.get_json(silent=True) or {}
+    annual_budget_id = data.get("annual_budget_id")
+    budget_type_id = data.get("libelle_id") or data.get("budget_type_id")
+    amount = data.get("amount")
+    
+    if not annual_budget_id or not budget_type_id or amount is None:
+        return jsonify({"detail": "annual_budget_id, budget_type_id, and amount are required"}), 400
+    
+    try:
+        execute(
+            """
+            INSERT INTO annual_budget_lines (annual_budget_id, budget_type_id, amount)
+            VALUES (%s, %s, %s)
+            RETURNING id
+            """,
+            (annual_budget_id, budget_type_id, float(amount))
+        )
+        row = fetch_one(
+            """
+            SELECT 
+                abl.id as _id,
+                abl.annual_budget_id,
+                abl.budget_type_id as libelle_id,
+                ab.exercise_id as exercice_id,
+                abl.amount,
+                bt.code,
+                bt.name_fr,
+                bt.name_ar
+            FROM annual_budget_lines abl
+            JOIN annual_budgets ab ON abl.annual_budget_id = ab.id
+            JOIN budget_types bt ON abl.budget_type_id = bt.id
+            WHERE abl.id = (SELECT max(id) FROM annual_budget_lines)
+            """
+        )
+        return jsonify(dict(row)), 201
+    except Exception as e:
+        return jsonify({"detail": str(e)}), 500
+
+
+@bp.route("/budget-allocations/<int:allocation_id>", methods=["PUT"])
+def update_budget_allocation(allocation_id):
+    data = request.get_json(silent=True) or {}
+    amount = data.get("amount")
+    
+    if amount is None:
+        return jsonify({"detail": "amount is required"}), 400
+    
+    try:
+        execute(
+            "UPDATE annual_budget_lines SET amount = %s WHERE id = %s",
+            (float(amount), allocation_id)
+        )
+        row = fetch_one(
+            """
+            SELECT 
+                abl.id as _id,
+                abl.annual_budget_id,
+                abl.budget_type_id as libelle_id,
+                ab.exercise_id as exercice_id,
+                abl.amount,
+                bt.code,
+                bt.name_fr,
+                bt.name_ar
+            FROM annual_budget_lines abl
+            JOIN annual_budgets ab ON abl.annual_budget_id = ab.id
+            JOIN budget_types bt ON abl.budget_type_id = bt.id
+            WHERE abl.id = %s
+            """,
+            (allocation_id,)
+        )
+        if not row:
+            return jsonify({"detail": "Allocation not found"}), 404
+        return jsonify(dict(row))
+    except Exception as e:
+        return jsonify({"detail": str(e)}), 500
+
+
+@bp.route("/budget-allocations/<int:allocation_id>", methods=["DELETE"])
+def delete_budget_allocation(allocation_id):
+    try:
+        execute("DELETE FROM annual_budget_lines WHERE id = %s", (allocation_id,))
+        return "", 204
+    except Exception as e:
+        return jsonify({"detail": str(e)}), 500
+
+
 # ─── Dashboard ───────────────────────────────────────────────────────────────
 
 @bp.route("/dashboard/summary", methods=["GET"])
