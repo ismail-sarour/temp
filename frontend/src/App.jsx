@@ -18,6 +18,7 @@ import GestionGED from "./pages/GestionGED";
 import GestionAudit from "./pages/GestionAudit";
 import GestionUtilisateurs from "./pages/GestionUtilisateurs";
 import GestionNotifications from "./pages/GestionNotifications";
+import AgentsIA from "./pages/AgentsIA";
 
 const pages = {
   "Tableau de bord": <Dashboard />,
@@ -38,6 +39,7 @@ const pages = {
   Utilisateurs: <GestionUtilisateurs />,
   Notifications: <GestionNotifications />,
   "Suivi Budgétaire": <SuiviBudgetaire />,
+  "Agents IA": <AgentsIA />,
 };
 
 export default function App() {

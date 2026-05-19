@@ -316,6 +316,20 @@ const navItems = [
       </svg>
     ),
   },
+  {
+    label: "Agents IA",
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <path
+          d="M8 3a5 5 0 00-5 5v5h10v-5a5 5 0 00-5-5z"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+        />
+        <path d="M5 11h6" stroke="currentColor" strokeWidth="1.5" />
+      </svg>
+    ),
+  },
 ];
 
 export default function Sidebar({ active, setActive }) {
