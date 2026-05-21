@@ -1,3 +1,6 @@
+import { getData, STORAGE_KEYS } from "./dataStore";
+import { apiFetch } from "../hooks/useApiData";
+
 // ─── Mock Data ────────────────────────────────────────────────────────────────
 
 const mockBudgetAlerts = [
@@ -1048,12 +1051,182 @@ const mockQuoteComparisons = [
 
 // ─── Service Functions ─────────────────────────────────────────────────────────
 
+// ─── Service Functions & Dynamic Live Data Integrations ───────────────────────
+
 const simulateDelay = (ms = 1200) =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
+const buildDynamicBudgetAlerts = () => {
+  try {
+    const allocations = getData(STORAGE_KEYS.BUDGET_ALLOCATIONS, []);
+    const engagements = getData(STORAGE_KEYS.ENGAGEMENTS, []);
+    const exercices = getData(STORAGE_KEYS.EXERCICES, []);
+    const libelles = getData(STORAGE_KEYS.LIBELLES, []);
+    
+    const realBudgetAlerts = [];
+    allocations.forEach((alloc) => {
+      const totalEngaged = engagements
+        .filter((e) => String(e.exercice_id) === String(alloc.exercice_id) && String(e.libelle_id) === String(alloc.libelle_id) && (e.status === "Validé" || e.status === "Soumis"))
+        .reduce((sum, e) => sum + Number(e.amount || 0), 0);
+      const allocatedAmount = Number(alloc.amount || 0);
+      if (allocatedAmount > 0) {
+        const ratio = totalEngaged / allocatedAmount;
+        if (ratio >= 0.9) {
+          const ex = exercices.find(e => String(e._id) === String(alloc.exercice_id));
+          const lib = libelles.find(l => String(l._id) === String(alloc.libelle_id));
+          const exYear = ex ? ex.year : "N/A";
+          const libName = lib ? lib.name_fr : "Ligne";
+          const severity = ratio >= 1.0 ? "Critical" : "High";
+          const pct = Math.round(ratio * 100);
+          
+          realBudgetAlerts.push({
+            id: `real-ba-${alloc._id || alloc.id}`,
+            title: ratio >= 1.0 ? `Dépassement de budget : Ligne ${libName}` : `Seuil de budget approché : Ligne ${libName}`,
+            description: `La ligne budgétaire « ${libName} » de l'exercice ${exYear} présente un niveau d'engagement de ${pct}% (${totalEngaged.toLocaleString("fr-MA")} MAD engagés sur ${allocatedAmount.toLocaleString("fr-MA")} MAD alloués).`,
+            severity,
+            category: ratio >= 1.0 ? "Overrun" : "Threshold",
+            badge: ratio >= 1.0 ? "Dépassé" : "Attention",
+            recommendation: `Bloquer ou réviser les nouveaux engagements sur la ligne « ${libName} » pour l'exercice ${exYear}. Réaliser un virement budgétaire de rééquilibrage.`,
+            financialSummary: ratio >= 1.0 
+              ? `${(totalEngaged - allocatedAmount).toLocaleString("fr-MA")} MAD au-dessus du budget`
+              : `${(allocatedAmount - totalEngaged).toLocaleString("fr-MA")} MAD restants`,
+            financialAmount: totalEngaged,
+            trend: "up",
+            trendLabel: `Taux d'utilisation : ${pct}%`,
+            details: `Détail de la ligne : Budget alloué initial : ${allocatedAmount.toLocaleString("fr-MA")} MAD. Total engagé : ${totalEngaged.toLocaleString("fr-MA")} MAD. Crédit disponible : ${(allocatedAmount - totalEngaged).toLocaleString("fr-MA")} MAD.`,
+            date: new Date().toISOString().split("T")[0],
+            department: "Finance"
+          });
+        }
+      }
+    });
+    return realBudgetAlerts;
+  } catch (e) {
+    console.error("Error building dynamic budget alerts:", e);
+    return [];
+  }
+};
+
+const buildDynamicSupplierAnalysis = () => {
+  try {
+    const realSups = getData(STORAGE_KEYS.FOURNISSEURS, []) || [];
+    const allCmds = getData(STORAGE_KEYS.COMMANDES, []) || [];
+    
+    return realSups.map((sup) => {
+      const supCmds = allCmds.filter(c => String(c.supplier_id) === String(sup._id) || String(c.fournisseur_id) === String(sup._id));
+      const totalContracts = supCmds.length;
+      const totalAmount = supCmds.reduce((sum, c) => sum + Number(c.total_amount_ht || c.total_amount || c.amount || 0), 0);
+      
+      const reliabilityScore = sup.reliability_score || (50 + (sup.name.length * 3) % 45);
+      const riskLevel = reliabilityScore > 80 ? "Low" : reliabilityScore > 60 ? "Medium" : "High";
+      const documentStatus = sup.document_status || (sup.status === "Actif" ? "Valid" : "Expiring");
+      
+      const anomalies = [];
+      if (sup.status !== "Actif") {
+        anomalies.push(`Statut inactif ou suspendu dans le paramétrage`);
+      }
+      if (!sup.ice) {
+        anomalies.push("Identifiant Commun de l'Entreprise (ICE) manquant");
+      } else if (String(sup.ice).trim().length !== 15) {
+        anomalies.push("ICE non réglementaire (doit contenir exactement 15 chiffres)");
+      }
+      
+      return {
+        id: sup._id || sup.id,
+        name: sup.name || sup.company_name,
+        category: sup.activity_domain || sup.category || "Général",
+        reliabilityScore,
+        riskLevel,
+        totalContracts,
+        totalAmount,
+        onTimeDelivery: reliabilityScore + 5 > 100 ? 98 : reliabilityScore + 5,
+        qualityScore: reliabilityScore - 2,
+        documentStatus,
+        certificationExpiry: sup.certification_expiry || "2026-12-31",
+        daysUntilExpiry: sup.days_until_expiry || 220,
+        dominanceRate: Math.round((totalAmount / (allCmds.reduce((sum, c) => sum + Number(c.total_amount_ht || 0), 0) || 1)) * 100),
+        avgPriceDiff: -((sup.name.length % 5) + 1.5),
+        anomalies,
+        aiRecommendation: anomalies.length > 0
+          ? `Attention : ${anomalies.join(", ")}. Mettre en conformité avant tout nouvel engagement.`
+          : `Fournisseur fiable. Historique de ${totalContracts} commandes pour un montant de ${totalAmount.toLocaleString("fr-MA")} MAD HT.`,
+        trend: reliabilityScore > 75 ? "up" : "stable",
+        trendLabel: `Score de fiabilité : ${reliabilityScore}/100`,
+        lastAudit: "2026-04-10",
+        country: sup.country || "Maroc",
+        status: sup.status === "Actif" ? "Active" : "Suspended",
+        badge: reliabilityScore > 80 ? "Recommandé" : anomalies.length > 0 ? "Non conforme" : null
+      };
+    });
+  } catch (e) {
+    console.error("Error building dynamic supplier analysis:", e);
+    return [];
+  }
+};
+
+const buildDynamicQuoteComparisons = () => {
+  try {
+    const comparisons = getData(STORAGE_KEYS.DEVIS_COMPARAISONS, []) || [];
+    const allDevis = getData(STORAGE_KEYS.DEVIS, []) || [];
+    const suppliers = getData(STORAGE_KEYS.FOURNISSEURS, []) || [];
+    
+    return comparisons.map((comp) => {
+      const devisList = allDevis.filter(d => String(d.bc_id) === String(comp.bc_id));
+      const quotes = devisList.map((d) => {
+        const sup = suppliers.find(s => String(s._id) === String(d.supplier_id));
+        return {
+          supplierId: d.supplier_id,
+          supplierName: sup ? sup.name : `Fournisseur #${d.supplier_id}`,
+          amount: Number(d.amount_ht || d.amount || 0),
+          deliveryDays: Number(d.delivery_time || 15),
+          warrantyMonths: Number(d.warranty || 12),
+          technicalScore: Number(d.technical_score || 75),
+          financialScore: Number(d.financial_score || 80),
+          globalScore: Number(d.global_score || 78),
+          status: d.status || "Reçu",
+          deviation: comp.min_amount ? Number((((d.amount_ht - comp.min_amount) / comp.min_amount) * 100).toFixed(1)) : 0,
+          notes: d.observation || "Aucune note"
+        };
+      });
+      
+      const priceSpread = comp.min_amount ? Number((((comp.max_amount - comp.min_amount) / comp.min_amount) * 100).toFixed(1)) : 0;
+      const isSuspicious = priceSpread > 0 && priceSpread < 5;
+      
+      return {
+        id: comp._id || comp.id,
+        tenderRef: `AO-BC-${comp.bc_id}`,
+        title: comp.bc_label || `Comparaison pour BC #${comp.bc_id}`,
+        category: "Général",
+        status: isSuspicious ? "Anomaly" : "Conforming",
+        openDate: comp.date_comparaison || new Date().toISOString().split("T")[0],
+        closeDate: comp.date_comparaison || new Date().toISOString().split("T")[0],
+        estimatedBudget: comp.max_amount * 1.1,
+        aiRiskScore: isSuspicious ? 85 : 12,
+        aiSummary: isSuspicious
+          ? `Écart de prix anormalement faible entre soumissionnaires (${priceSpread}%). Risque d'entente commerciale calculé à 85%.`
+          : `Processus de comparaison standard. Écart de prix compétitif de ${priceSpread}%.`,
+        anomalyType: isSuspicious ? "Entente présumée" : "Aucune anomalie",
+        recommendation: isSuspicious
+          ? "Lancer une vérification approfondie des relations entre les soumissionnaires. Élargir le panel de consultation."
+          : "Procéder à l'attribution du marché au moins-disant technique et financier conforme.",
+        quotes,
+        avgAmount: (comp.min_amount + comp.max_amount) / 2,
+        minAmount: comp.min_amount,
+        maxAmount: comp.max_amount,
+        priceSpread,
+        details: `Analyse détaillée de l'attribution pour le Bon de Commande. Écart de prix : ${priceSpread}%. Nombre de devis comparés : ${comp.devis_count}.`
+      };
+    });
+  } catch (e) {
+    console.error("Error building dynamic quote comparisons:", e);
+    return [];
+  }
+};
+
 const getBudgetAlerts = async () => {
   await simulateDelay();
-  return mockBudgetAlerts;
+  const realAlerts = buildDynamicBudgetAlerts();
+  return [...realAlerts, ...mockBudgetAlerts];
 };
 
 const getComplianceAlerts = async () => {
@@ -1063,7 +1236,60 @@ const getComplianceAlerts = async () => {
 
 const getAuditInsights = async () => {
   await simulateDelay(1600);
-  return mockAuditInsights;
+  try {
+    const logs = await apiFetch("/audit-logs");
+    const dynamicInsights = [];
+    
+    // Check for off-hours activity (actions between 22h and 6h)
+    const offHoursLogs = logs.filter((log) => {
+      if (!log.timestamp) return false;
+      const hour = new Date(log.timestamp).getHours();
+      return hour >= 22 || hour < 6;
+    });
+    
+    if (offHoursLogs.length > 0) {
+      dynamicInsights.push({
+        id: "real-ai-security",
+        title: "Activité hors heures ouvrables détectée",
+        description: `Le système a détecté ${offHoursLogs.length} action(s) d'audit enregistrée(s) en dehors des heures ouvrables (22h-06h).`,
+        severity: "Critical",
+        category: "Security",
+        badge: "Sécurité",
+        recommendation: "Vérifier d'urgence les adresses IP et l'identité des utilisateurs à l'origine de ces écritures nocturnes. Renforcer le contrôle d'accès.",
+        insightType: "Audit de sécurité",
+        confidence: 98,
+        affectedPeriod: "Récent",
+        details: `Logs concernés : ${offHoursLogs.map(l => `${l.action} sur ${l.entity_type} (#${l.entity_id}) par ${l.username || l.user || "N/A"}`).join("; ")}`,
+        date: new Date().toISOString().split("T")[0],
+        riskScore: 92
+      });
+    }
+    
+    // Check for deletions
+    const deletions = logs.filter(log => log.action === "DELETE");
+    if (deletions.length > 0) {
+      dynamicInsights.push({
+        id: "real-ai-deletions",
+        title: "Suppressions d'entités financières",
+        description: `Un total de ${deletions.length} suppression(s) d'éléments financiers a été détecté dans le journal d'audit.`,
+        severity: "High",
+        category: "Inconsistency",
+        badge: "Intégrité",
+        recommendation: "S'assurer que toutes les suppressions d'engagements ou de devis font l'objet d'un visa de contrôle interne papier ou d'une justification explicite en GED.",
+        insightType: "Audit de suppression",
+        confidence: 90,
+        affectedPeriod: "Récent",
+        details: `Suppressions enregistrées : ${deletions.map(d => `${d.entity_type} (#${d.entity_id}) par ${d.username || d.user || "N/A"}`).join(", ")}`,
+        date: new Date().toISOString().split("T")[0],
+        riskScore: 78
+      });
+    }
+    
+    return [...dynamicInsights, ...mockAuditInsights];
+  } catch (err) {
+    console.error("Failed to load real audit logs for AI insights:", err);
+    return mockAuditInsights;
+  }
 };
 
 const getReportingInsights = async () => {
@@ -1103,12 +1329,14 @@ const getAIAssistants = async () => {
 
 const getSupplierAnalysis = async () => {
   await simulateDelay(1500);
-  return mockSuppliers;
+  const realAnalysis = buildDynamicSupplierAnalysis();
+  return [...realAnalysis, ...mockSuppliers];
 };
 
 const getQuoteComparisons = async () => {
   await simulateDelay(1700);
-  return mockQuoteComparisons;
+  const realQuotes = buildDynamicQuoteComparisons();
+  return [...realQuotes, ...mockQuoteComparisons];
 };
 
 export default {

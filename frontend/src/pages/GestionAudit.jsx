@@ -6,7 +6,9 @@ import {
   exportToCSV,
   exportToJSON,
   getData,
+  setData,
 } from "../services/dataStore";
+import { apiFetch } from "../hooks/useApiData";
 
 const thStyle = {
   padding: "12px 16px",
@@ -94,6 +96,23 @@ export default function GestionAudit() {
   const [filterDateTo, setFilterDateTo] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedLog, setSelectedLog] = useState(null);
+
+  useEffect(() => {
+    apiFetch("/audit-logs")
+      .then((data) => {
+        if (Array.isArray(data)) {
+          const mappedLogs = data.map((log) => ({
+            ...log,
+            user: log.username || log.user || "N/A",
+            entityType: log.entity_type || log.entityType || "N/A",
+            entityId: log.entity_id || log.entityId || "N/A",
+          }));
+          setLogs(mappedLogs);
+          setData(STORAGE_KEYS.AUDIT_LOGS, mappedLogs);
+        }
+      })
+      .catch((err) => console.error("Failed to load real audit logs from database:", err));
+  }, []);
 
   useEffect(() => {
     let filtered = [...logs];

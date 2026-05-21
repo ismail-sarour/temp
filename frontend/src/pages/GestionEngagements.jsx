@@ -256,16 +256,25 @@ export default function GestionEngagements() {
   const [showForm, setShowForm] = useState(false);
 
   useEffect(() => {
+    let active = true;
     if (form.exercice_id && form.libelle_id) {
-      const credit = calculateAvailableCredit(
+      calculateAvailableCredit(
         form.exercice_id,
         form.libelle_id,
         { excludeEngagementId: editId },
-      );
-      setCreditInfo(credit);
+      ).then((credit) => {
+        if (active) {
+          setCreditInfo(credit);
+        }
+      }).catch((err) => {
+        console.error("Failed to load credit details:", err);
+      });
     } else {
       setCreditInfo(null);
     }
+    return () => {
+      active = false;
+    };
   }, [form.exercice_id, form.libelle_id, editId]);
 
   const [exercices] = useState(() => getData(STORAGE_KEYS.EXERCICES, []));
@@ -321,7 +330,7 @@ export default function GestionEngagements() {
   // ═════════════════════════════════════════════════════════════════
   // CRUD
   // ═════════════════════════════════════════════════════════════════
-  const submitEngagement = () => {
+  const submitEngagement = async () => {
     if (
       !form.reference ||
       !form.exercice_id ||
@@ -331,7 +340,7 @@ export default function GestionEngagements() {
       return;
 
     const amount = Number(form.amount);
-    const creditCheck = checkCreditAvailability(
+    const creditCheck = await checkCreditAvailability(
       form.exercice_id,
       form.libelle_id,
       amount,
@@ -827,16 +836,13 @@ export default function GestionEngagements() {
                       <strong
                         style={{
                           color:
-                            getAvailableCredit(
-                              form.exercice_id,
-                              form.libelle_id,
-                            ) < Number(form.amount)
+                            (creditInfo?.available || 0) < Number(form.amount)
                               ? "#854F0B"
                               : "#3B6D11",
                         }}
                       >
                         {formatNumber(
-                          getAvailableCredit(form.exercice_id, form.libelle_id),
+                          creditInfo?.available || 0,
                         )}{" "}
                         MAD
                       </strong>

@@ -1,103 +1,53 @@
-import React, { useState, useEffect } from "react";
+import React from "react";
 import "./AIChatInterface.css";
 
 const AIChatInterface = () => {
-  const [messages, setMessages] = useState([]);
-  const [newMessage, setNewMessage] = useState("");
-  const [isTyping, setIsTyping] = useState(false);
-
-  const handleSendMessage = () => {
-    if (newMessage.trim() !== "") {
-      setIsTyping(true);
-      setMessages([...messages, { text: newMessage, sender: "user" }]);
-
-      // Simulate AI response
-      setTimeout(() => {
-        const aiResponse = getAIResponse(newMessage);
-        setMessages([
-          ...messages,
-          { text: newMessage, sender: "user" },
-          { text: aiResponse, sender: "ai" },
-        ]);
-        setIsTyping(false);
-        setNewMessage("");
-      }, 2000);
-    }
-  };
-
-  const getAIResponse = (message) => {
-    // Mock AI response based on the message
-    if (message.includes("budget")) {
-      return "I can help you with budget control. Please provide the budget name and the time period you are interested in.";
-    } else if (message.includes("supplier")) {
-      return "I can help you verify a supplier. Please provide the supplier's name, location, and contact information.";
-    } else if (message.includes("audit")) {
-      return "I can help you with audit analysis. Which area are you interested in?";
-    } else if (message.includes("quote")) {
-      return "I can help you with quote comparison. Please provide the quote details.";
-    } else {
-      return "I'm sorry, I don't have information on that topic. Please try a different question.";
-    }
-  };
-
-  const quickPrompts = [
-    "Budget control",
-    "Supplier verification",
-    "Audit analysis",
-    "Quote comparison",
-    "Compliance checks",
-    "Reporting insights",
-  ];
-
-  const handleQuickPromptClick = (prompt) => {
-    setNewMessage(prompt);
-    handleSendMessage();
+  const handleOpenGlobalChat = () => {
+    // Dispatch a custom event to open the global widget
+    window.dispatchEvent(new CustomEvent("openAIChatWidget"));
   };
 
   return (
-    <div className="ai-chat-interface">
-      <div className="chat-history">
-        {messages.map((message, index) => (
-          <div
-            key={index}
-            className={`message-container ${message.sender === "user" ? "user-message-container" : "ai-message-container"}`}
-          >
-            <div
-              className={`message-bubble ${message.sender === "user" ? "user-message-bubble" : "ai-message-bubble"}`}
-            >
-              {message.text}
-            </div>
+    <div className="ai-chat-redirect-container">
+      <div className="ai-card">
+        <div className="ai-card-header">
+          <div className="ai-card-icon-wrapper">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+              <path d="M12 2a10 10 0 1010 10A10 10 0 0012 2zm0 18a8 8 0 118-8 8 8 0 01-8 8z" fill="#E8D5A3" />
+              <path d="M12 6a3 3 0 00-3 3h2a1 1 0 011-1 1 1 0 011 1c0 1-1.5 1.5-1.5 2.5v1.5h1.5v-1c0-.8 1.5-1.3 1.5-2.5a3 3 0 00-3-3zM11.25 15h1.5v1.5h-1.5z" fill="#E8D5A3" />
+            </svg>
           </div>
-        ))}
-        {isTyping && <div className="typing-indicator">AI is typing...</div>}
-      </div>
-      <div className="quick-prompts">
-        {quickPrompts.map((prompt) => (
-          <button
-            key={prompt}
-            className="quick-prompt-button"
-            onClick={() => handleQuickPromptClick(prompt)}
-          >
-            {prompt}
+          <div>
+            <h3 className="ai-card-title">Copilote IA Global</h3>
+            <p className="ai-card-subtitle">Disponible sur toute la plateforme CASM</p>
+          </div>
+        </div>
+        
+        <p className="ai-card-description">
+          L'Assistant IA de CASM n'est plus limité à ce module. Il a été transformé en un <strong>widget flottant persistant</strong> disponible sur tous les onglets (Fournisseurs, Budgets, Devis, Audit, Notifications, etc.).
+        </p>
+
+        <div className="ai-features-grid">
+          <div className="ai-feature-card">
+            <span className="feature-badge">✨ Persistance</span>
+            <p>Votre historique de chat reste intact lorsque vous naviguez d'une page à l'autre.</p>
+          </div>
+          <div className="ai-feature-card">
+            <span className="feature-badge">🔍 Contexte Réel</span>
+            <p>L'IA analyse automatiquement le module ouvert (ex. fournisseurs actifs, alertes budgétaires, anomalies d'audit).</p>
+          </div>
+          <div className="ai-feature-card">
+            <span className="feature-badge">🚀 Groq LLM</span>
+            <p>Propulsé en tâche de fond par Groq API (Llama-3.3-70b-versatile) avec accès direct à vos données.</p>
+          </div>
+        </div>
+
+        <div className="ai-card-action">
+          <button className="ai-open-button" onClick={handleOpenGlobalChat}>
+            <span className="btn-icon">💬</span>
+            Activer l'Assistant IA
           </button>
-        ))}
-      </div>
-      <div className="input-area">
-        <input
-          type="text"
-          className="message-input"
-          placeholder="Type your message..."
-          value={newMessage}
-          onChange={(e) => setNewMessage(e.target.value)}
-          onKeyPress={(e) => {
-            if (e.key === "Enter") {
-              handleSendMessage();
-            }
-          }}
-        />
-        <button className="send-button" onClick={handleSendMessage}>
-          Send
-        </button>
+        </div>
       </div>
     </div>
   );

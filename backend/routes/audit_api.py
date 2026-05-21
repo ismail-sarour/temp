@@ -37,7 +37,7 @@ def create_audit_log():
     try:
         data = request.get_json()
         query = """
-        INSERT INTO audit_logs (action, entity_type, entity_id, user, details, ip_address, user_agent)
+        INSERT INTO audit_logs (action, entity_type, entity_id, username, details, ip_address, user_agent)
         VALUES (%s, %s, %s, %s, %s, %s, %s)
         RETURNING *
         """
@@ -45,7 +45,7 @@ def create_audit_log():
             data.get("action"),
             data.get("entity_type"),
             data.get("entity_id"),
-            data.get("user"),
+            data.get("username", data.get("user")),
             data.get("details"),
             data.get("ip_address", "N/A"),
             data.get("user_agent", "N/A")

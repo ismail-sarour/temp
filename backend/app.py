@@ -10,6 +10,7 @@ from routes.audit_api import audit_bp
 from routes.notifications_api import notifications_bp
 from routes.documents_api import documents_bp
 from routes.entities_api import entities_bp
+from routes.ai_chat_api import ai_chat_bp
 
 
 def create_app():
@@ -21,6 +22,7 @@ def create_app():
     app.register_blueprint(notifications_bp, url_prefix="/api")
     app.register_blueprint(documents_bp, url_prefix="/api")
     app.register_blueprint(entities_bp, url_prefix="/api")
+    app.register_blueprint(ai_chat_bp, url_prefix="/api")
     return app
 
 

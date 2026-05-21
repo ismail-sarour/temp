@@ -19,6 +19,7 @@ import GestionAudit from "./pages/GestionAudit";
 import GestionUtilisateurs from "./pages/GestionUtilisateurs";
 import GestionNotifications from "./pages/GestionNotifications";
 import AgentsIA from "./pages/AgentsIA";
+import AIChatWidget from "./components/AIChatWidget/AIChatWidget"; // Import the new AI Chat Widget
 
 const pages = {
   "Tableau de bord": <Dashboard />,
@@ -64,6 +65,7 @@ export default function App() {
       >
         {pages[active]}
       </main>
+      <AIChatWidget currentModule={active} /> {/* Render the AI Chat Widget globally with current page context */}
     </div>
   );
 }

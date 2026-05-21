@@ -244,7 +244,7 @@ export async function processAttribution({
   }
 
   const amountHt = Number(selectedDevis.amount_ht) || 0;
-  const creditCheck = checkCreditAvailability(
+  const creditCheck = await checkCreditAvailability(
     bc.exercice_id,
     bc.budget_label_id,
     amountHt,
@@ -375,7 +375,7 @@ export async function validateEngagementStatus(engagementId, newStatus, engageme
         String(e.libelle_id) === String(engagement.libelle_id),
     );
     const othersSum = others.reduce((s, e) => s + Number(e.amount || 0), 0);
-    const credit = checkCreditAvailability(
+    const credit = await checkCreditAvailability(
       engagement.exercice_id,
       engagement.libelle_id,
       Number(engagement.amount || 0),
